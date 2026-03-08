@@ -9,7 +9,6 @@ from app.core.database import AsyncSessionLocal
 from app.core.logging import configure_logging
 from app.core.telemetry import setup_telemetry
 from prometheus_fastapi_instrumentator import Instrumentator
-from fastapi_limiter import FastAPILimiter
 
 from app.modules.auth.router import router as auth_router
 from app.modules.clinical_sessions.router import \
@@ -45,14 +44,6 @@ def create_app() -> FastAPI:
         logger.info("Application starting up")
         setup_telemetry(app)
         
-        # Redis connection for Rate Limiting
-        try:
-            r = redis.from_url(settings.REDIS_URL, encoding="utf-8", decode_responses=True)
-            await FastAPILimiter.init(r)
-            logger.info("Rate limiter initialized with Redis")
-        except Exception as e:
-            logger.error(f"Rate limiter failed to initialize: {e}")
-
         # 0) Supabase Institutional Configuration Guard
         supabase_url = getattr(settings, "SUPABASE_URL", None)
         supabase_key = getattr(settings, "SUPABASE_ANON_KEY", None)
