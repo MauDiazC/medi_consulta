@@ -9,6 +9,7 @@ from app.core.database import AsyncSessionLocal
 from app.core.logging import configure_logging
 from app.core.telemetry import setup_telemetry
 from prometheus_fastapi_instrumentator import Instrumentator
+from fastapi_limiter import FastAPILimiter
 
 from app.modules.auth.router import router as auth_router
 from app.modules.clinical_sessions.router import \
