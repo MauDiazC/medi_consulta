@@ -15,7 +15,7 @@ Asegúrate de tener las credenciales de:
    - `DATABASE_URL`: Tu cadena de Supabase (usar el puerto 5432 o 6543 con modo sesión).
    - `REDIS_URL`: Tu cadena de Upstash.
    - `SUPABASE_URL` y `SUPABASE_ANON_KEY`: Para el módulo de Auth.
-   - `GROQ_API_KEY`: Para el motor de IA.
+   - `GROQ_API_KEY`: Para el motor de IA. 
 
 ## 3. Configuración de Servicios (Web y Worker)
 Al usar Dockerfile, Railway levantará un servicio por defecto. Debes configurar dos servicios usando la misma imagen:

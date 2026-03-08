@@ -23,17 +23,20 @@ def setup_telemetry(app):
     tracer_provider = TracerProvider(resource=resource)
     trace.set_tracer_provider(tracer_provider)
     
-    # 3. Setup OTLP Exporter (Sending to Jaeger/Honeycomb/Grafana Tempo)
-    # Default endpoint usually points to a local or cloud collector
-    otlp_endpoint = settings.get("OTLP_ENDPOINT", "http://localhost:4318/v1/traces")
+    # 3. Setup OTLP Exporter ONLY if endpoint is provided
+    # This prevents connection errors in environments without a collector (like Railway default)
+    otlp_endpoint = settings.get("OTLP_ENDPOINT")
     
-    try:
-        otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
-        span_processor = BatchSpanProcessor(otlp_exporter)
-        tracer_provider.add_span_processor(span_processor)
-        logger.info(f"OTLP Exporter configured to {otlp_endpoint}")
-    except Exception as e:
-        logger.warning(f"Could not initialize OTLP exporter: {e}. Traces will be local only.")
+    if otlp_endpoint:
+        try:
+            otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+            span_processor = BatchSpanProcessor(otlp_exporter)
+            tracer_provider.add_span_processor(span_processor)
+            logger.info(f"OpenTelemetry: OTLP Exporter configured to {otlp_endpoint}")
+        except Exception as e:
+            logger.warning(f"OpenTelemetry: Could not initialize OTLP exporter: {e}")
+    else:
+        logger.info("OpenTelemetry: No OTLP_ENDPOINT found. Tracing is active but not exporting.")
 
     # 4. Instrument FastAPI
     FastAPIInstrumentor.instrument_app(app)
@@ -42,7 +45,7 @@ def setup_telemetry(app):
     from app.core.database import engine
     SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
     
-    logger.info("OpenTelemetry instrumentation completed.")
+    logger.info("OpenTelemetry: Instrumentation completed.")
 
 def get_tracer():
     return trace.get_tracer(__name__)
