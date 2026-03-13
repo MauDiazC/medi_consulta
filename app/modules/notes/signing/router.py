@@ -23,7 +23,7 @@ async def sign_note_endpoint(
     return await signing_app.execute_signing(
         note=note,
         version=version,
-        signer_id=user["id"],
+        signer_id=user["sub"],
         idempotency_key=x_idempotency_key
     )
 
@@ -37,7 +37,7 @@ async def seal_encounter_endpoint(
     signing_app = SigningApplicationService(db)
     return await signing_app.execute_encounter_sealing(
         encounter_id=encounter_id,
-        signer_id=user["id"],
+        signer_id=user["sub"],
         idempotency_key=x_idempotency_key
     )
 
@@ -50,8 +50,8 @@ async def rotate_keys_endpoint(
 ):
     signing_app = SigningApplicationService(db)
     return await signing_app.rotate_organization_key(
-        organization_id=user["organization_id"],
+        organization_id=user["org"],
         public_key_pem=public_key,
         private_key_pem=private_key,
-        executor_id=user["id"]
+        executor_id=user["sub"]
     )

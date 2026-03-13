@@ -129,11 +129,20 @@ class SigningApplicationService:
 
         if await self.signing_repo.get_seal(encounter_id): raise ValueError("Already sealed.")
         
-        org_id = "00000000-0000-0000-0000-000000000000" # Resolver actual org
-        active_key = await self.signing_repo.get_active_organization_key(org_id)
+        org_id = await self.signing_repo.get_encounter_org(encounter_id)
+        if not org_id:
+            raise ValueError("Encounter not found or has no organization.")
+            
+        active_key = await self.signing_repo.get_active_organization_key(str(org_id))
+        if not active_key:
+            raise ValueError("No active signing key found for this organization.")
+
         priv_pem = self._decrypt_key(active_key.encrypted_private_key)
 
         snapshots = await self.signing_repo.get_all_snapshots_for_encounter(encounter_id)
+        if not snapshots:
+            raise ValueError("Cannot seal an encounter with no signed snapshots.")
+
         seal_payload = {
             "encounter_id": str(encounter_id),
             "snapshot_hashes": [{"snapshot_id": str(s.id), "hash": s.content_hash} for s in snapshots],

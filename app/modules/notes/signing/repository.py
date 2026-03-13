@@ -93,6 +93,11 @@ class SigningRepository:
         result = await self.db.execute(stmt)
         return result.scalars().first() is not None
 
+    async def get_encounter_org(self, encounter_id: str) -> str:
+        stmt = text("SELECT organization_id FROM encounters WHERE id = :eid")
+        result = await self.db.execute(stmt, {"eid": encounter_id})
+        return result.scalar()
+
     async def get_active_organization_key(self, organization_id: str):
         stmt = (
             select(OrganizationKey)
