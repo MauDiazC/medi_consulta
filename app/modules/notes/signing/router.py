@@ -55,3 +55,21 @@ async def rotate_keys_endpoint(
         private_key_pem=private_key,
         executor_id=user["sub"]
     )
+
+@router.post("/keys/upload")
+async def upload_keys_endpoint(
+    public_key_file: UploadFile = File(...),
+    private_key_file: UploadFile = File(...),
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    public_pem = (await public_key_file.read()).decode()
+    private_pem = (await private_key_file.read()).decode()
+
+    signing_app = SigningApplicationService(db)
+    return await signing_app.rotate_organization_key(
+        organization_id=user["org"],
+        public_key_pem=public_pem,
+        private_key_pem=private_pem,
+        executor_id=user["sub"]
+    )
