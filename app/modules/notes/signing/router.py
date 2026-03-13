@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, UploadFile, Header, HTTPException
+from fastapi import APIRouter, Depends, File, UploadFile, Header, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -43,8 +43,8 @@ async def seal_encounter_endpoint(
 
 @router.post("/keys/rotate")
 async def rotate_keys_endpoint(
-    public_key: str,
-    private_key: str,
+    public_key: str = Body(...),
+    private_key: str = Body(...),
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
