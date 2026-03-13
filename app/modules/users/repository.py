@@ -12,7 +12,7 @@ class UserRepository:
             text("""
                 INSERT INTO users(
                     email,password_hash,role,
-                    organization_id,is_active
+                    organization_id,active
                 )
                 VALUES(:e,:p,:r,:o,true)
                 RETURNING *
@@ -28,7 +28,7 @@ class UserRepository:
                 SELECT *
                 FROM users
                 WHERE organization_id=:org
-                AND is_active=true
+                AND active=true
                 LIMIT :limit OFFSET :offset
             """),
             {"org": org, "limit": limit, "offset": offset},
@@ -63,7 +63,7 @@ class UserRepository:
         await self.db.execute(
             text("""
                 UPDATE users
-                SET is_active=false
+                SET active=false
                 WHERE id=:id AND organization_id=:org
             """),
             {"id": user_id, "org": org},

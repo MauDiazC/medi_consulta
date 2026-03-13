@@ -19,7 +19,7 @@ class AuthRepository:
                     organization_id
                 FROM users
                 WHERE email=:email
-                AND is_active=true
+                AND active=true
             """),
             {"email": email},
         )
@@ -39,7 +39,7 @@ class AuthRepository:
                     organization_id
                 FROM users
                 WHERE id=:id
-                AND is_active=true
+                AND active=true
             """),
             {"id": user_id},
         )
@@ -52,7 +52,7 @@ class AuthRepository:
         """
         r = await self.db.execute(
             text("""
-                INSERT INTO users(id, email, full_name, role, organization_id, is_active)
+                INSERT INTO users(id, email, full_name, role, organization_id, active)
                 VALUES(:id, :email, :name, :role, NULL, true)
                 RETURNING *
             """),
