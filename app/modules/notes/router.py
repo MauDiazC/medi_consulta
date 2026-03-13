@@ -93,9 +93,6 @@ async def unlock_note(
         x_session_id,
     )
 
-        x_session_id,
-    )
-
 
 @router.post("/ai/stream/{encounter_id}")
 async def stream_ai(
