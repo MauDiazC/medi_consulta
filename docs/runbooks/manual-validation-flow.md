@@ -56,3 +56,4 @@ Para que el sistema sepa en qué organización estás operando, debes obtener un
 
 ## Paso 8: Auditoría
 - **Endpoint:** `GET /notes/verify/{note_id}` para confirmar la integridad criptográfica.
+

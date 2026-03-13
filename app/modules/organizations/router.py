@@ -25,7 +25,7 @@ async def create_org(
     user=Depends(get_current_user),
     s=Depends(get_service)
 ):
-    return await s.create(payload, user["id"])
+    return await s.create(payload, user["sub"])
 
 
 @router.get("")

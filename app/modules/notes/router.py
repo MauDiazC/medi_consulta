@@ -35,7 +35,7 @@ async def autosave_note(
 ):
     return await service.autosave(
         encounter_id,
-        user["id"],
+        user["sub"],
         payload,
         if_unmodified_since,
     )
@@ -49,12 +49,10 @@ async def finalize_version(
 ):
     return await service.finalize_version(
         encounter_id,
-        user["id"],
+        user["sub"],
     )
 
 
-from fastapi import APIRouter, Depends, Header, File, UploadFile
-...
 @router.post("/{note_id}/sign")
 async def sign_note(
     note_id: str,
@@ -65,7 +63,7 @@ async def sign_note(
     private_pem = await keyfile.read()
     return await service.sign(
         note_id,
-        user["id"],
+        user["sub"],
         private_pem
     )
 
@@ -78,7 +76,7 @@ async def lock_note(
 ):
     return await acquire_note_lock(
         note_id,
-        user["id"],
+        user["sub"],
         x_session_id,
     )
 
@@ -91,7 +89,10 @@ async def unlock_note(
 ):
     return await release_note_lock(
         note_id,
-        user["id"],
+        user["sub"],
+        x_session_id,
+    )
+
         x_session_id,
     )
 
