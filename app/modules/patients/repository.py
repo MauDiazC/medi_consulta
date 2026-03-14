@@ -11,7 +11,7 @@ class PatientRepository:
             text("""
                 INSERT INTO patients(
                     first_name,last_name,
-                    organization_id,is_active
+                    organization_id,active
                 )
                 VALUES(:f,:l,:o,true)
                 RETURNING *
@@ -27,7 +27,7 @@ class PatientRepository:
                 SELECT *
                 FROM patients
                 WHERE organization_id=:org
-                AND is_active=true
+                AND active=true
                 LIMIT :limit OFFSET :offset
             """),
             {"org": org, "limit": limit, "offset": offset},
@@ -68,7 +68,7 @@ class PatientRepository:
         await self.db.execute(
             text("""
                 UPDATE patients
-                SET is_active=false
+                SET active=false
                 WHERE id=:id AND organization_id=:org
             """),
             {"id": patient_id, "org": org},
