@@ -10,9 +10,10 @@ class ClinicalNoteRepository:
     async def get(self, note_id: str):
         r = await self.db.execute(
             text("""
-            SELECT *
-            FROM clinical_notes
-            WHERE id = :id
+            SELECT cn.*, e.organization_id
+            FROM clinical_notes cn
+            JOIN encounters e ON cn.encounter_id = e.id
+            WHERE cn.id = :id
             """),
             {"id": note_id},
         )
@@ -21,12 +22,13 @@ class ClinicalNoteRepository:
     async def get_active_draft(self, encounter_id: str):
         r = await self.db.execute(
             text("""
-            SELECT *
-            FROM clinical_notes
-            WHERE encounter_id = :eid
-              AND is_active_draft = true
-              AND signed_at IS NULL
-            ORDER BY version DESC
+            SELECT cn.*, e.organization_id
+            FROM clinical_notes cn
+            JOIN encounters e ON cn.encounter_id = e.id
+            WHERE cn.encounter_id = :eid
+              AND cn.is_active_draft = true
+              AND cn.signed_at IS NULL
+            ORDER BY cn.version DESC
             LIMIT 1
             """),
             {"eid": encounter_id},
@@ -126,10 +128,11 @@ class ClinicalNoteRepository:
     ):
         r = await self.db.execute(
             text("""
-            SELECT *
-            FROM clinical_notes
-            WHERE encounter_id=:eid
-            AND version=:version
+            SELECT cn.*, e.organization_id
+            FROM clinical_notes cn
+            JOIN encounters e ON cn.encounter_id = e.id
+            WHERE cn.encounter_id=:eid
+            AND cn.version=:version
             """),
             {
                 "eid": encounter_id,
@@ -141,9 +144,10 @@ class ClinicalNoteRepository:
     async def get_note_and_version(self, note_id: str):
         r = await self.db.execute(
             text("""
-            SELECT *
-            FROM clinical_notes
-            WHERE id = :id
+            SELECT cn.*, e.organization_id
+            FROM clinical_notes cn
+            JOIN encounters e ON cn.encounter_id = e.id
+            WHERE cn.id = :id
             """),
             {"id": note_id},
         )
