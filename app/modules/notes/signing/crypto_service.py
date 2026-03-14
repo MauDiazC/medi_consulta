@@ -1,5 +1,5 @@
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric import padding, utils
 
 
 def load_private_key(pem_bytes: bytes, password: bytes = None):
@@ -15,7 +15,7 @@ def sign_hash(private_key, hash_hex: str) -> str:
             mgf=padding.MGF1(hashes.SHA256()),
             salt_length=padding.PSS.MAX_LENGTH,
         ),
-        hashes.SHA256(),
+        utils.Prehashed(hashes.SHA256()),
     )
     return sig.hex()
 
@@ -28,7 +28,7 @@ def verify_signature(public_key, hash_hex: str, signature_hex: str) -> bool:
                 mgf=padding.MGF1(hashes.SHA256()),
                 salt_length=padding.PSS.MAX_LENGTH,
             ),
-            hashes.SHA256(),
+            utils.Prehashed(hashes.SHA256()),
         )
         return True
     except Exception:
