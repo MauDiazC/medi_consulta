@@ -51,5 +51,5 @@ ENV PYTHONUNBUFFERED=1
 # Expose port (Railway will override this with $PORT)
 EXPOSE 8000
 
-# Default command (Railway can override this with Procfile or Start Command)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Unified Start Command: Run migrations then start server
+CMD sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
