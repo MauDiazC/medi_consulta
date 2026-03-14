@@ -67,7 +67,7 @@ class ClinicalNoteRepository:
                 "expected_updated_at": expected_updated_at,
             },
         )
-
+        await self.db.commit()
         return r.mappings().first()
 
     async def deactivate_draft(self, note_id: str):
@@ -79,6 +79,7 @@ class ClinicalNoteRepository:
             """),
             {"id": note_id},
         )
+        await self.db.commit()
 
     async def create_new_version(self, payload: dict):
         r = await self.db.execute(
@@ -107,7 +108,7 @@ class ClinicalNoteRepository:
             """),
             payload,
         )
-
+        await self.db.commit()
         return r.mappings().first()
 
     async def sign(self, note_id: str):
@@ -120,6 +121,7 @@ class ClinicalNoteRepository:
             """),
             {"id": note_id},
         )
+        await self.db.commit()
 
     async def get_version(
         self,
