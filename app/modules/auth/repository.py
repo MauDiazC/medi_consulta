@@ -58,4 +58,5 @@ class AuthRepository:
             """),
             {"id": user_id, "email": email, "name": full_name, "role": role}
         )
+        await self.db.commit()
         return r.mappings().first()
