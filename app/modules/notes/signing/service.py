@@ -65,12 +65,14 @@ class SigningApplicationService:
         
         async with self.db.begin():
             await self.signing_repo.deactivate_organization_keys(organization_id)
+            now = datetime.now(timezone.utc)
             new_key = OrganizationKey(
                 organization_id=organization_id, public_key_pem=public_key_pem, public_key_fingerprint=fingerprint,
                 encrypted_private_key=encrypted_priv, is_active=True,
                 # Phase 1 & 3: Retention
                 retention_until=self.retention_engine.calculate_retention_period(10), # Long retention for keys
-                retention_source="Institutional Key Policy"
+                retention_source="Institutional Key Policy",
+                created_at=now
             )
             await self.signing_repo.save_organization_key(new_key)
             await audit_log(self.db, "organization_key", str(new_key.id), "rotated", executor_id)
