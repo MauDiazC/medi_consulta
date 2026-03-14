@@ -5,6 +5,6 @@ class ClinicalSessionService:
 
     async def create(self, payload, org_id):
         return await self._repo.create(
-            payload.patient_id,
+            payload.name,
             org_id,
         )

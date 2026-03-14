@@ -9,25 +9,23 @@ class ClinicalSessionRepository:
 
     async def create(
         self,
-        patient_id: str,
+        name: str,
         organization_id: str,
     ):
         result = await self._db.execute(
             text("""
                 INSERT INTO clinical_sessions (
-                    patient_id,
-                    organization_id,
-                    status
+                    name,
+                    organization_id
                 )
                 VALUES (
-                    :patient_id,
-                    :organization_id,
-                    'active'
+                    :name,
+                    :organization_id
                 )
-                RETURNING id, patient_id, organization_id, status
+                RETURNING id, name, organization_id
             """),
             {
-                "patient_id": patient_id,
+                "name": name,
                 "organization_id": organization_id,
             },
         )

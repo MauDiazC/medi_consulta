@@ -2,11 +2,11 @@ from pydantic import BaseModel
 
 
 class ClinicalSessionCreate(BaseModel):
-    patient_id: str
+    name: str
 
 
 class ClinicalSessionDTO(BaseModel):
     id: str
-    patient_id: str
+    name: str
     organization_id: str
-    status: str
+    status: str | None = None
