@@ -41,7 +41,7 @@ async def audit_log(
     canonical = canonical_json(entry_data)
     entry_hash = sha256_hex(canonical)
 
-    # 4) Persist entry
+    # 4) Persist entry (Explicitly serialize metadata to JSON string)
     await db.execute(
         text("""
         INSERT INTO clinical_audit_log (
@@ -67,7 +67,8 @@ async def audit_log(
         """),
         {
             **entry_data,
+            "metadata": json.dumps(entry_data["metadata"]),
             "entry_hash": entry_hash
         },
     )
-    # Note: Service layer manages commit for atomicity
+    # Note: Service layer manages commit for atomicity.
