@@ -14,7 +14,7 @@ class ImmutableLegalArtifact:
     Mixin for institutional-grade record preservation.
     Enforced structurally via SQLAlchemy event listeners.
     """
-    retention_until = Column(DateTime, nullable=True, index=True)
+    retention_until = Column(DateTime(timezone=True), nullable=True, index=True)
     archival_status = Column(String(20), default="active", nullable=False)
     legal_hold = Column(Boolean, default=False, nullable=False)
     is_immutable = Column(Boolean, default=False, nullable=False)
@@ -25,7 +25,7 @@ class ImmutableLegalArtifact:
             raise StructuralIntegrityError(f"Structural Violation: Entity {self.__class__.__name__} is immutable.")
         if self.legal_hold:
             raise StructuralIntegrityError(f"Structural Violation: Entity {self.__class__.__name__} is under Legal Hold.")
-        if self.retention_until and datetime.now(timezone.utc) < self.retention_until.replace(tzinfo=timezone.utc):
+        if self.retention_until and datetime.now(timezone.utc) < self.retention_until:
             raise StructuralIntegrityError(f"Structural Violation: Retention has not expired for {self.__class__.__name__}.")
 
 # --- Infrastructure Enforcement Layers ---
@@ -59,14 +59,14 @@ class OutboxEvent(Base, ImmutableLegalArtifact):
     event_type = Column(String(100), nullable=False)
     payload = Column(JSON, nullable=False)
     processed = Column(Boolean, default=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    processed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    processed_at = Column(DateTime(timezone=True), nullable=True)
 
 class IdempotencyKey(Base, ImmutableLegalArtifact):
     __tablename__ = "idempotency_keys"
     id = Column(String(255), primary_key=True)
     response_payload = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 class ClinicalAuditLog(Base, ImmutableLegalArtifact):
     __tablename__ = "clinical_audit_log"
@@ -78,4 +78,4 @@ class ClinicalAuditLog(Base, ImmutableLegalArtifact):
     entry_metadata = Column(JSON, nullable=True) # Renamed from metadata
     previous_hash = Column(String(128), nullable=True)
     entry_hash = Column(String(128), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

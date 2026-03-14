@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (JSON, Column, DateTime, ForeignKey, String, Boolean,
                         UniqueConstraint)
@@ -13,17 +13,17 @@ class NoteSnapshot(Base, ImmutableLegalArtifact):
     __tablename__ = "note_snapshots"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    note_id = Column(UUID(as_uuid=True), ForeignKey("notes.id"), nullable=False)
+    note_id = Column(UUID(as_uuid=True), ForeignKey("clinical_notes.id"), nullable=False)
     version_id = Column(UUID(as_uuid=True), nullable=False)
     snapshot_json = Column(JSON, nullable=False)
     content_hash = Column(String(128), nullable=False)
     signature = Column(String, nullable=False)
     signed_by = Column(UUID(as_uuid=True), nullable=False)
-    signed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    signed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     public_key_fingerprint = Column(String(128), nullable=False)
     previous_snapshot_hash = Column(String(128), nullable=True, index=True)
     pdf_path = Column(String, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         UniqueConstraint("version_id", name="uq_snapshot_version"),
@@ -37,10 +37,10 @@ class EncounterSeal(Base, ImmutableLegalArtifact):
     encounter_id = Column(UUID(as_uuid=True), nullable=False, unique=True)
     aggregate_hash = Column(String(128), nullable=False)
     signature = Column(String, nullable=False)
-    signed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    signed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     public_key_fingerprint = Column(String(128), nullable=False)
     seal_payload = Column(JSON, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
 class OrganizationKey(Base, ImmutableLegalArtifact):
@@ -53,8 +53,8 @@ class OrganizationKey(Base, ImmutableLegalArtifact):
     encrypted_private_key = Column(String, nullable=False)  # AES-GCM Encrypted PEM
     organization_root_fingerprint = Column(String(128), nullable=True) # Immutable anchor
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    retired_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    retired_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         # Ensure only one active key per organization (requires partial index in Postgres, 
@@ -79,8 +79,8 @@ class BackupJob(Base, ImmutableLegalArtifact):
     # Backup Trust Chain
     previous_backup_hash = Column(String(128), nullable=True, index=True)
     
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
     executor_id = Column(UUID(as_uuid=True), nullable=False)
 
     __table_args__ = (
