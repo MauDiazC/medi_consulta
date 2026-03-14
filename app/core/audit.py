@@ -27,6 +27,7 @@ async def audit_log(
     previous_hash = result.scalar()
 
     # 2) Prepare entry data
+    now = datetime.now(timezone.utc)
     entry_data = {
         "entity": entity,
         "entity_id": str(entity_id),
@@ -34,14 +35,14 @@ async def audit_log(
         "performed_by": str(user_id),
         "metadata": metadata or {},
         "previous_hash": previous_hash,
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "created_at": now.isoformat()
     }
 
     # 3) Compute entry hash (Canonical JSON ensures determinism)
     canonical = canonical_json(entry_data)
     entry_hash = sha256_hex(canonical)
 
-    # 4) Persist entry (Explicitly serialize metadata to JSON string)
+    # 4) Persist entry (Pass datetime object for created_at)
     await db.execute(
         text("""
         INSERT INTO clinical_audit_log (
@@ -68,7 +69,8 @@ async def audit_log(
         {
             **entry_data,
             "metadata": json.dumps(entry_data["metadata"]),
-            "entry_hash": entry_hash
+            "entry_hash": entry_hash,
+            "created_at": now
         },
     )
     # Note: Service layer manages commit for atomicity.
