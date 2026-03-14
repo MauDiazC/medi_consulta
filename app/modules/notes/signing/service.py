@@ -63,19 +63,19 @@ class SigningApplicationService:
         fingerprint = hashlib.sha256(public_key_pem.encode()).hexdigest()
         encrypted_priv = self._encrypt_key(private_key_pem)
         
-        async with self.db.begin():
-            await self.signing_repo.deactivate_organization_keys(organization_id)
-            now = datetime.now(timezone.utc)
-            new_key = OrganizationKey(
-                organization_id=organization_id, public_key_pem=public_key_pem, public_key_fingerprint=fingerprint,
-                encrypted_private_key=encrypted_priv, is_active=True,
-                # Phase 1 & 3: Retention
-                retention_until=self.retention_engine.calculate_retention_period(10), # Long retention for keys
-                retention_source="Institutional Key Policy",
-                created_at=now
-            )
-            await self.signing_repo.save_organization_key(new_key)
-            await audit_log(self.db, "organization_key", str(new_key.id), "rotated", executor_id)
+        await self.signing_repo.deactivate_organization_keys(organization_id)
+        now = datetime.now(timezone.utc)
+        new_key = OrganizationKey(
+            organization_id=organization_id, public_key_pem=public_key_pem, public_key_fingerprint=fingerprint,
+            encrypted_private_key=encrypted_priv, is_active=True,
+            # Phase 1 & 3: Retention
+            retention_until=self.retention_engine.calculate_retention_period(10), # Long retention for keys
+            retention_source="Institutional Key Policy",
+            created_at=now
+        )
+        await self.signing_repo.save_organization_key(new_key)
+        await audit_log(self.db, "organization_key", str(new_key.id), "rotated", executor_id)
+        await self.db.commit()
         return new_key
 
     async def execute_signing(self, note, version, signer_id: str, idempotency_key: str = None) -> dict:
@@ -86,11 +86,14 @@ class SigningApplicationService:
         if await self.signing_repo.is_encounter_sealed(str(note["encounter_id"])):
             raise ValueError("Encounter is sealed.")
 
-        user = await self.user_repo.get(signer_id, note["organization_id"])
+        user = await self.user_repo.get(signer_id, str(note["organization_id"]))
         prof_info = {"full_name": user["full_name"], "professional_license": user.get("professional_license", "PENDING"), "role": user["role"]}
 
         org_id = str(note["organization_id"])
         active_key = await self.signing_repo.get_active_organization_key(org_id)
+        if not active_key:
+            raise ValueError("No active signing key found for organization.")
+            
         priv_pem = self._decrypt_key(active_key.encrypted_private_key)
         
         latest = await self.signing_repo.get_latest_snapshot_for_encounter(str(note["encounter_id"]))
@@ -100,28 +103,28 @@ class SigningApplicationService:
         private = load_private_key(priv_pem)
         signature = sign_hash(private, content_hash)
 
-        async with self.db.begin():
-            snapshot = NoteSnapshot(
-                note_id=note["id"], version_id=version["id"], snapshot_json=payload,
-                content_hash=content_hash, signature=signature, signed_by=signer_id,
-                signed_at=datetime.now(timezone.utc), public_key_fingerprint=active_key.public_key_fingerprint,
-                previous_snapshot_hash=previous_hash,
-                # Phase 3 & 5: Structural Hardening
-                retention_until=self.retention_engine.calculate_retention_period(5),
-                retention_source="NOM-004-SSA3-2012",
-                is_immutable=True
-            )
-            await self.signing_repo.save_snapshot(snapshot)
-            await self.note_repo.sign(note["id"])
-            await audit_log(self.db, "clinical_note", str(note["id"]), "signed", signer_id)
-            
-            await publish_event_tx(self.db, "note.signed", {
-                "encounter_id": str(note["encounter_id"]), "note_id": str(note["id"]), "snapshot_id": str(snapshot.id)
-            })
+        snapshot = NoteSnapshot(
+            note_id=note["id"], version_id=version["id"], snapshot_json=payload,
+            content_hash=content_hash, signature=signature, signed_by=signer_id,
+            signed_at=datetime.now(timezone.utc), public_key_fingerprint=active_key.public_key_fingerprint,
+            previous_snapshot_hash=previous_hash,
+            # Phase 3 & 5: Structural Hardening
+            retention_until=self.retention_engine.calculate_retention_period(5),
+            retention_source="NOM-004-SSA3-2012",
+            is_immutable=True
+        )
+        await self.signing_repo.save_snapshot(snapshot)
+        await self.note_repo.sign(note["id"])
+        await audit_log(self.db, "clinical_note", str(note["id"]), "signed", signer_id)
+        
+        await publish_event_tx(self.db, "note.signed", {
+            "encounter_id": str(note["encounter_id"]), "note_id": str(note["id"]), "snapshot_id": str(snapshot.id)
+        })
 
-            response = {"status": "signed", "snapshot_id": str(snapshot.id)}
-            if idempotency_key: await self._record_idempotency(idempotency_key, response)
-
+        response = {"status": "signed", "snapshot_id": str(snapshot.id)}
+        if idempotency_key: await self._record_idempotency(idempotency_key, response)
+        
+        await self.db.commit()
         return response
 
     async def execute_encounter_sealing(self, encounter_id: str, signer_id: str, idempotency_key: str = None) -> dict:
@@ -156,21 +159,21 @@ class SigningApplicationService:
         aggregate_hash = sha256_hex(canonical_json(seal_payload))
         signature = sign_hash(load_private_key(priv_pem), aggregate_hash)
 
-        async with self.db.begin():
-            seal = EncounterSeal(
-                encounter_id=encounter_id, aggregate_hash=aggregate_hash, signature=signature,
-                signed_at=datetime.now(timezone.utc), public_key_fingerprint=active_key.public_key_fingerprint,
-                seal_payload=seal_payload,
-                # Phase 3 & 5: Structural Hardening
-                retention_until=self.retention_engine.calculate_retention_period(5),
-                retention_source="NOM-004-SSA3-2012",
-                is_immutable=True
-            )
-            await self.signing_repo.save_seal(seal)
-            await audit_log(self.db, "encounter", str(encounter_id), "sealed", signer_id)
-            await publish_event_tx(self.db, "encounter.sealed", {"encounter_id": str(encounter_id), "seal_id": str(seal.id)})
+        seal = EncounterSeal(
+            encounter_id=encounter_id, aggregate_hash=aggregate_hash, signature=signature,
+            signed_at=datetime.now(timezone.utc), public_key_fingerprint=active_key.public_key_fingerprint,
+            seal_payload=seal_payload,
+            # Phase 3 & 5: Structural Hardening
+            retention_until=self.retention_engine.calculate_retention_period(5),
+            retention_source="NOM-004-SSA3-2012",
+            is_immutable=True
+        )
+        await self.signing_repo.save_seal(seal)
+        await audit_log(self.db, "encounter", str(encounter_id), "sealed", signer_id)
+        await publish_event_tx(self.db, "encounter.sealed", {"encounter_id": str(encounter_id), "seal_id": str(seal.id)})
 
-            response = {"status": "sealed", "seal_id": str(seal.id)}
-            if idempotency_key: await self._record_idempotency(idempotency_key, response)
+        response = {"status": "sealed", "seal_id": str(seal.id)}
+        if idempotency_key: await self._record_idempotency(idempotency_key, response)
 
+        await self.db.commit()
         return response
