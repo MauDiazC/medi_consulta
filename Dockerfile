@@ -51,5 +51,7 @@ ENV PYTHONUNBUFFERED=1
 # Expose port (Railway will override this with $PORT)
 EXPOSE 8000
 
-# Unified Start Command: Run migrations then start server
-CMD sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+# Start script to handle migrations and server
+RUN printf "#!/bin/sh\nalembic upgrade head\nexec uvicorn app.main:app --host 0.0.0.0 --port \${PORT:-8000}\n" > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
