@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.modules.notes.signing.service import SigningApplicationService
 from app.modules.notes.repository import ClinicalNoteRepository
+from app.modules.notes.signing.models import NoteSnapshot
 
 router = APIRouter(prefix="/notes/signing", tags=["signing"])
 
@@ -26,6 +27,17 @@ async def sign_note_endpoint(
         signer_id=user["sub"],
         idempotency_key=x_idempotency_key
     )
+
+@router.get("/snapshot/{snapshot_id}")
+async def get_snapshot_endpoint(
+    snapshot_id: str,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    snapshot = await db.get(NoteSnapshot, snapshot_id)
+    if not snapshot:
+        raise HTTPException(404, "Snapshot not found")
+    return snapshot
 
 @router.post("/seal/{encounter_id}")
 async def seal_encounter_endpoint(
