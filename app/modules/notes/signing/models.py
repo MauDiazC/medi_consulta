@@ -13,7 +13,7 @@ class NoteSnapshot(Base, ImmutableLegalArtifact):
     __tablename__ = "note_snapshots"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    note_id = Column(UUID(as_uuid=True), ForeignKey("clinical_notes.id"), nullable=False)
+    note_id = Column(UUID(as_uuid=True), nullable=False)
     version_id = Column(UUID(as_uuid=True), nullable=False)
     snapshot_json = Column(JSON, nullable=False)
     content_hash = Column(String(128), nullable=False)
