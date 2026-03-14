@@ -38,7 +38,20 @@ class ClinicalNoteService:
         )
 
         if not draft:
-            raise HTTPException(404, "Draft not found")
+            # Clinical Safety: Auto-provision first draft version if it doesn't exist
+            new_note = await self.repo.create_new_version(
+                {
+                    "encounter_id": encounter_id,
+                    "version": 1,
+                    "subjective": fields.get("subjective", ""),
+                    "objective": fields.get("objective", ""),
+                    "assessment": fields.get("assessment", ""),
+                    "plan": fields.get("plan", ""),
+                    "created_by": doctor_id,
+                }
+            )
+            await publish_event("note.created", {"encounter_id": encounter_id, "note_id": new_note["id"]})
+            return new_note
 
         if str(draft["created_by"]) != str(
             doctor_id
