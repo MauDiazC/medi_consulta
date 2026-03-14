@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import text, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.notes.signing.utils import canonical_json, sha256_hex
@@ -34,7 +34,7 @@ async def audit_log(
         "performed_by": str(user_id),
         "metadata": metadata or {},
         "previous_hash": previous_hash,
-        "created_at": datetime.utcnow().isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
 
     # 3) Compute entry hash (Canonical JSON ensures determinism)
