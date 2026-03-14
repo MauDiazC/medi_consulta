@@ -23,7 +23,7 @@ def upgrade() -> None:
 
     # 2. Main Tables (Using raw SQL from your source of truth for the baseline)
     schema_sql = """
-    create table organizations (
+    create table if not exists organizations (
         id uuid primary key default uuid_generate_v4(),
         name text not null,
         plan_code text null, 
@@ -31,7 +31,7 @@ def upgrade() -> None:
         created_at timestamp with time zone default now()
     );
 
-    create table users (
+    create table if not exists users (
         id uuid primary key default uuid_generate_v4(),
         organization_id uuid references organizations(id),
         email text unique not null,
@@ -42,7 +42,7 @@ def upgrade() -> None:
         created_at timestamp with time zone default now()
     );
 
-    create table patients (
+    create table if not exists patients (
         id uuid primary key default uuid_generate_v4(),
         organization_id uuid references organizations(id),
         first_name text not null,
@@ -54,14 +54,14 @@ def upgrade() -> None:
         created_at timestamp with time zone default now()
     );
 
-    create table clinical_sessions (
+    create table if not exists clinical_sessions (
         id uuid primary key default uuid_generate_v4(),
         organization_id uuid references organizations(id),
         name text not null,
         created_at timestamp with time zone default now()
     );
 
-    create table encounters (
+    create table if not exists encounters (
         id uuid primary key default uuid_generate_v4(),
         organization_id uuid references organizations(id),
         patient_id uuid references patients(id),
@@ -72,7 +72,7 @@ def upgrade() -> None:
         created_at timestamp with time zone default now()
     );
 
-    create table clinical_notes (
+    create table if not exists clinical_notes (
         id uuid primary key default uuid_generate_v4(),
         encounter_id uuid references encounters(id),
         created_by uuid references users(id),
@@ -87,7 +87,7 @@ def upgrade() -> None:
         created_at timestamp with time zone default now()
     );
 
-    create table clinical_audit_log (
+    create table if not exists clinical_audit_log (
         id bigserial primary key,
         entity text not null,
         entity_id text not null,
@@ -99,7 +99,7 @@ def upgrade() -> None:
         created_at timestamp with time zone default now()
     );
 
-    create table outbox_events (
+    create table if not exists outbox_events (
         id bigserial primary key,
         event_type text not null,
         payload jsonb not null,
@@ -107,7 +107,7 @@ def upgrade() -> None:
         created_at timestamp with time zone default now()
     );
 
-    create table clinical_snapshots (
+    create table if not exists clinical_snapshots (
         id uuid primary key default uuid_generate_v4(),
         note_id uuid references clinical_notes(id),
         encounter_id uuid references encounters(id),
