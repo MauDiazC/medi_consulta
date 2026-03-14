@@ -48,8 +48,8 @@ COPY . .
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# Expose port (Railway will override this with $PORT)
+# Expose port
 EXPOSE 8000
 
-# Simple CMD for Railway
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Use shell form to allow environment variable expansion ($PORT)
+CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT

@@ -30,7 +30,7 @@ async def get_supabase_jwks():
     supabase_url = settings.SUPABASE_URL.strip().rstrip("/")
     url = f"{supabase_url}/auth/v1/.well-known/jwks.json"
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         # Standard OIDC discovery endpoint - Do NOT send apikey header
         resp = await client.get(url)
         resp.raise_for_status()
