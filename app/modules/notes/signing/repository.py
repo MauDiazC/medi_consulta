@@ -89,7 +89,16 @@ class SigningRepository:
         return result.scalars().first()
 
     async def is_encounter_sealed(self, encounter_id: str) -> bool:
-        stmt = select(EncounterSeal.id).where(EncounterSeal.encounter_id == encounter_id)
+        from uuid import UUID
+        if not encounter_id:
+            return False
+        try:
+            # Aseguramos que sea un objeto UUID para SQLAlchemy
+            val = UUID(str(encounter_id))
+        except (ValueError, AttributeError):
+            return False
+            
+        stmt = select(EncounterSeal.id).where(EncounterSeal.encounter_id == val)
         result = await self.db.execute(stmt)
         return result.scalars().first() is not None
 

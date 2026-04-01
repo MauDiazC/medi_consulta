@@ -37,12 +37,11 @@ async def verify_snapshot(
     if not payload or not isinstance(payload, dict):
         raise HTTPException(422, "Invalid snapshot payload")
 
-    # 3) Authorized Key Retrieval (Hardening: No client-provided keys)
+    # 3) Authorized Key Retrieval
     repo = SigningRepository(db)
     public_key_pem = await get_authorized_key(repo, snapshot.public_key_fingerprint)
 
     # 4) Fingerprint Validation
-    # Ensure the stored PEM still matches the stored fingerprint (Defensive)
     actual_fingerprint = hashlib.sha256(public_key_pem.encode()).hexdigest()
     fingerprint_ok = hmac.compare_digest(actual_fingerprint, snapshot.public_key_fingerprint)
 
@@ -57,14 +56,24 @@ async def verify_snapshot(
         try:
             public = load_public_key(public_key_pem.encode())
             signature_ok = verify_signature(public, recalculated, snapshot.signature)
-        except Exception:
+        except Exception as e:
             signature_ok = False
+            error_detail = str(e)
+        else:
+            error_detail = None
+    else:
+        error_detail = "Integrity or fingerprint check failed before signature verification"
 
     return {
         "valid": (integrity_ok and signature_ok and fingerprint_ok),
         "integrity_ok": integrity_ok,
         "signature_ok": signature_ok,
         "fingerprint_ok": fingerprint_ok,
+        "diagnostics": {
+            "recalculated_hash": recalculated,
+            "stored_hash": snapshot.content_hash,
+            "error_detail": error_detail
+        },
         "details": {
             "fingerprint": snapshot.public_key_fingerprint
         }

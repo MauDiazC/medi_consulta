@@ -4,8 +4,7 @@ from datetime import datetime, timedelta
 import redis.asyncio as redis
 from fastapi import HTTPException
 from app.core.config import settings
-
-r = redis.from_url(settings.REDIS_URL)
+from app.core.events import get_redis
 
 LOCK_TTL = 120
 
@@ -15,6 +14,9 @@ async def acquire_note_lock(
     doctor_id: str,
     session_id: str,
 ):
+    r = get_redis()
+    if r is None:
+        return {"locked": True}
 
     key = f"lock:note:{note_id}"
 
@@ -60,6 +62,9 @@ async def release_note_lock(
     doctor_id: str,
     session_id: str,
 ):
+    r = get_redis()
+    if r is None:
+        return {"released": True}
 
     key = f"lock:note:{note_id}"
 

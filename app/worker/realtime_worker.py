@@ -11,10 +11,26 @@ from app.core.models import OutboxEvent
 from app.core.events import publish_event
 from app.modules.notes.signing.service import SigningApplicationService
 from app.modules.notes.signing.pdf_render import render_snapshot_pdf
+from app.modules.appointments.service import AppointmentService
+from app.modules.appointments.repository import AppointmentRepository
 from app.core.config import settings
 
 r = redis.from_url(settings.REDIS_URL)
 logger = logging.getLogger("worker")
+
+async def run_appointment_scheduler():
+    """
+    Background scheduler for appointment reminders.
+    """
+    while True:
+        try:
+            async with AsyncSessionLocal() as db:
+                service = AppointmentService(AppointmentRepository(db))
+                await service.process_pending_reminders()
+        except Exception as e:
+            logger.error(f"Appointment scheduler error: {str(e)}", exc_info=True)
+        
+        await asyncio.sleep(60) # Run every minute
 
 async def relay_outbox_events():
     """
@@ -118,7 +134,8 @@ async def run():
     logger.info("Worker started")
     await asyncio.gather(
         run_listener(),
-        relay_outbox_events()
+        relay_outbox_events(),
+        run_appointment_scheduler()
     )
 
 if __name__ == "__main__":

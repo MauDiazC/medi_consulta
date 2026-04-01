@@ -4,8 +4,7 @@ from datetime import datetime, timedelta
 import redis.asyncio as redis
 from fastapi import HTTPException
 from app.core.config import settings
-
-r = redis.from_url(settings.REDIS_URL)
+from app.core.events import get_redis
 
 LOCK_TTL = 120  # seconds
 
@@ -14,6 +13,10 @@ async def acquire_encounter_lock(
     encounter_id: str,
     doctor_id: str,
 ):
+    r = get_redis()
+    if r is None:
+        return {"locked": True}
+
     key = f"lock:encounter:{encounter_id}"
 
     existing = await r.get(key)
@@ -48,6 +51,10 @@ async def release_encounter_lock(
     encounter_id: str,
     doctor_id: str,
 ):
+    r = get_redis()
+    if r is None:
+        return {"released": True}
+
     key = f"lock:encounter:{encounter_id}"
 
     existing = await r.get(key)

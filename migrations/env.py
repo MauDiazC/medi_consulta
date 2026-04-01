@@ -10,8 +10,11 @@ from alembic import context
 # 1. Import Mediconsulta Settings & Base
 from app.core.config import settings
 from app.core.database import Base
+
 # Import all models here so Alembic can see them
-# from app.modules.notes.signing.models import ... 
+from app.core.models import OutboxEvent, IdempotencyKey, ClinicalAuditLog
+from app.modules.notes.signing.models import NoteSnapshot, EncounterSeal, OrganizationKey, BackupJob
+from app.modules.appointments.models import Appointment
 
 # Alembic Config
 config = context.config

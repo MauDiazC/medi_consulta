@@ -150,7 +150,8 @@ class SigningApplicationService:
 
         seal_payload = {
             "encounter_id": str(encounter_id),
-            "snapshot_hashes": [{"snapshot_id": str(s.id), "hash": s.content_hash} for s in snapshots],
+            "snapshot_hashes": [{"snapshot_id": str(s.id), "content_hash": s.content_hash} for s in snapshots],
+            "snapshot_count": len(snapshots),
             "final_chain_hash": snapshots[-1].content_hash,
             "sealed_at": datetime.now(timezone.utc).isoformat(),
             "schema_version": "encounter-seal-v1"

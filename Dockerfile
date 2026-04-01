@@ -51,5 +51,5 @@ ENV PYTHONUNBUFFERED=1
 # Expose port
 EXPOSE 8000
 
-# Use shell form to allow environment variable expansion ($PORT)
-CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
+# Use shell form to allow command chaining and environment variable expansion
+CMD alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT

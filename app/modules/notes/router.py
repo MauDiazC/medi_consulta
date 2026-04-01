@@ -53,6 +53,7 @@ async def finalize_version(
     )
 
 
+
 @router.post("/{note_id}/sign")
 async def sign_note(
     note_id: str,

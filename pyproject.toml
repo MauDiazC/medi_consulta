@@ -28,6 +28,7 @@ dependencies = [
     "passlib>=1.7.4",
     "prometheus-fastapi-instrumentator>=7.1.0",
     "pydantic[email]>=2.12.5",
+    "pytest>=9.0.2",
     "python-jose[cryptography]>=3.5.0",
     "python-multipart>=0.0.22",
     "redis>=7.2.1",
