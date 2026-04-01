@@ -14,6 +14,7 @@ from app.modules.auth.router import router as auth_router
 from app.modules.clinical_sessions.router import \
     router as clinical_sessions_router
 from app.modules.dictation.websocket import router as dictation_ws
+from app.modules.dictation.router import router as dictation_router
 from app.modules.encounters.router import router as encounters_router
 from app.modules.health.router import router as health_router
 from app.modules.notes.router import router as notes_router
@@ -98,6 +99,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(workspace_router)
     app.include_router(dictation_ws)
+    app.include_router(dictation_router)
     app.include_router(clinical_sessions_router)
     app.include_router(note_sign_router)
     app.include_router(verify_router)
