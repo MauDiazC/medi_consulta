@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_appointments_and_core'
-down_revision = 'signing_tables_fix_columns'
+down_revision = 'signing_tables_fix'
 branch_labels = None
 depends_on = None
 
