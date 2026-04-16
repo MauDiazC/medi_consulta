@@ -23,11 +23,10 @@ core_validators = [
     Validator("REDIS_URL", must_exist=True),
 ]
 
-# 2. Servicios Externos (Necesarios para Auth/AI, pero el core puede iniciar)
+# 2. Servicios Externos (Opcionales o específicos)
 external_validators = [
-    Validator("SUPABASE_URL", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("SUPABASE_ANON_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
     Validator("GROQ_API_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    # Supabase ya no es requerido para Auth
 ]
 
 # Nota: En Railway, si usas Supabase para Auth, DEBES poner las variables.
