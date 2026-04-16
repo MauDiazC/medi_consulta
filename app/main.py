@@ -46,15 +46,11 @@ def create_app() -> FastAPI:
         logger.info("Application starting up")
         setup_telemetry(app)
         
-        # 0) Supabase Institutional Configuration Guard
-        supabase_url = getattr(settings, "SUPABASE_URL", None)
-        supabase_key = getattr(settings, "SUPABASE_ANON_KEY", None)
+        # Institutional Configuration Guard
+        secret_key = getattr(settings, "SECRET_KEY", None)
         
-        if not supabase_url or not supabase_key:
-            raise RuntimeError(
-                "CRITICAL CONFIGURATION MISSING: SUPABASE_URL and SUPABASE_ANON_KEY "
-                "are required for identity and security services."
-            )
+        if not secret_key or secret_key == "CHANGE_ME_IN_PRODUCTION_USE_A_SECURE_RANDOM_STRING":
+            logger.warning("INSECURE CONFIGURATION: SECRET_KEY is not set or using default value.")
 
         # 1) Database Health Check (Scoped session)
         try:
