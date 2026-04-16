@@ -1,4 +1,4 @@
-from .providers.groq import GroqSpeechProvider
+from .providers.google import GoogleSpeechProvider
 from .semantic_buffer import SemanticBuffer
 from .soap_classifier import SOAPClassifier
 from .soap_streamer import SOAPStreamer
@@ -8,8 +8,8 @@ from .trigger_engine import TriggerEngine
 class DictationManager:
 
     def __init__(self):
+        self.stt = GoogleSpeechProvider()
 
-        self.stt = GroqSpeechProvider()
         self.classifier = SOAPClassifier()
         self.streamer = SOAPStreamer()
 

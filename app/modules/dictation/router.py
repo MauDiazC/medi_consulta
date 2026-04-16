@@ -10,7 +10,7 @@ async def classify_dictation(
     user=Depends(get_current_user)
 ):
     """
-    Toma un texto libre (dictado) y lo organiza en secciones SOAP usando IA (Groq).
+    Toma un texto libre (dictado) y lo organiza en secciones SOAP usando IA (Google Gemini).
     """
     text = payload.get("text")
     classifier = SOAPClassifier()
