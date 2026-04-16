@@ -28,7 +28,6 @@ external_validators = [
     Validator("GOOGLE_AI_API_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
     Validator("GOOGLE_CLIENT_ID", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
     Validator("RESEND_API_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("ELEVENLABS_API_KEY", must_exist=False), # Opcional para arrancar
 ]
 
 # Nota: En Railway, si usas Supabase para Auth, DEBES poner las variables.
