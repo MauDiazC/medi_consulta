@@ -16,6 +16,8 @@ depends_on = None
 
 def upgrade() -> None:
     schema_sql = """
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
     CREATE TABLE IF NOT EXISTS organization_keys (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         organization_id UUID NOT NULL REFERENCES organizations(id),
@@ -30,7 +32,6 @@ def upgrade() -> None:
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 
-    -- Ensure column exists if table was created in a previous failed run
     DO $$ 
     BEGIN 
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='organization_keys' AND column_name='organization_root_fingerprint') THEN
@@ -99,9 +100,7 @@ def upgrade() -> None:
         archival_status TEXT DEFAULT 'active'
     );
     """
-    for stmt in schema_sql.split(';'):
-        if stmt.strip():
-            op.execute(sa.text(stmt))
+    op.execute(sa.text(schema_sql))
 
 def downgrade() -> None:
     op.drop_table('backup_jobs')
