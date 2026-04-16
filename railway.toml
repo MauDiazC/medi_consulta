@@ -1,0 +1,22 @@
+# Railway Multi-Service Configuration
+# Professional Clinical Grade Infrastructure
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+# Service 1: API Gateway & Clinical Interface
+[services.api]
+name = "api"
+healthcheckPath = "/health"
+restartPolicy = "ON_FAILURE"
+# Professional migration safety: Run BEFORE deployment
+preDeployCommand = "alembic upgrade head"
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+
+# Service 2: Background Task Processor (ARQ)
+[services.worker]
+name = "worker"
+restartPolicy = "ALWAYS"
+# No networking needed for worker
+startCommand = "arq app.worker.realtime_worker.WorkerSettings"

@@ -1,10 +1,9 @@
 import json
 import anyio
 import asyncio
-import redis.asyncio as redis
 import logging
 from datetime import datetime
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
 from app.core.models import OutboxEvent
@@ -13,50 +12,17 @@ from app.modules.notes.signing.service import SigningApplicationService
 from app.modules.notes.signing.pdf_render import render_snapshot_pdf
 from app.modules.appointments.service import AppointmentService
 from app.modules.appointments.repository import AppointmentRepository
-from app.core.config import settings
+from app.core.worker_settings import get_redis_settings
 
-r = redis.from_url(settings.REDIS_URL)
 logger = logging.getLogger("worker")
 
-async def run_appointment_scheduler():
-    """
-    Background scheduler for appointment reminders.
-    """
-    while True:
-        try:
-            async with AsyncSessionLocal() as db:
-                service = AppointmentService(AppointmentRepository(db))
-                await service.process_pending_reminders()
-        except Exception as e:
-            logger.error(f"Appointment scheduler error: {str(e)}", exc_info=True)
-        
-        await asyncio.sleep(60) # Run every minute
+# --- ARQ Tasks ---
 
-async def relay_outbox_events():
+async def handle_note_signed_task(ctx, event_data: dict):
     """
-    Guaranteed Relay: Polls outbox_events and publishes to Redis.
+    ARQ Task: Guaranteed PDF generation.
     """
-    while True:
-        try:
-            async with AsyncSessionLocal() as db:
-                stmt = select(OutboxEvent).where(OutboxEvent.processed == False).limit(10)
-                result = await db.execute(stmt)
-                events = result.scalars().all()
-
-                for event in events:
-                    await publish_event(event.event_type, event.payload)
-                    event.processed = True
-                    event.processed_at = datetime.utcnow()
-                
-                await db.commit()
-        except Exception as e:
-            logger.error(f"Outbox relay error: {str(e)}", exc_info=True)
-        
-        await asyncio.sleep(1)
-
-async def handle_note_signed(event_data: dict):
     note_id = event_data.get("note_id")
-    org_id = event_data.get("organization_id")
     if not note_id: return
 
     try:
@@ -64,85 +30,94 @@ async def handle_note_signed(event_data: dict):
             signing_service = SigningApplicationService(db)
             snapshot = await signing_service.get_snapshot(note_id, "SYSTEM", "pdf_generation")
             if not snapshot:
-                logger.error(f"Snapshot not found for note: {note_id}", extra={"note_id": note_id, "event_type": "note.signed"})
+                logger.error(f"Snapshot not found for note: {note_id}")
                 return
 
+            # CPU bound task in thread
             pdf_bytes = await anyio.to_thread.run_sync(render_snapshot_pdf, snapshot)
             pdf_path = f"/tmp/snapshot_{snapshot.id}.pdf"
             await anyio.Path(pdf_path).write_bytes(pdf_bytes)
 
             snapshot.pdf_path = pdf_path
             await db.commit()
+            logger.info(f"PDF generated successfully for note: {note_id}")
     except Exception as e:
-        logger.error(
-            f"PDF Worker error: {str(e)}", 
-            exc_info=True, 
-            extra={
-                "event_type": "note.signed", 
-                "note_id": note_id,
-                "organization_id": org_id
-            }
-        )
+        logger.error(f"PDF Worker error: {str(e)}", exc_info=True)
+        raise e # ARQ will retry if exception is raised
 
-async def run_listener():
-    pubsub = r.pubsub()
-    await pubsub.subscribe("mediconsulta.events")
-    logger.info("Redis subscription established")
+# --- Background Loops ---
 
-    async for message in pubsub.listen():
-        if message["type"] != "message": continue
+async def run_appointment_scheduler():
+    while True:
+        try:
+            async with AsyncSessionLocal() as db:
+                service = AppointmentService(AppointmentRepository(db))
+                await service.process_pending_reminders()
+        except Exception as e:
+            logger.error(f"Appointment scheduler error: {str(e)}", exc_info=True)
+        await asyncio.sleep(60)
 
-        event = json.loads(message["data"])
-        event_type = event.get("type")
-        event_data = event.get("data", {})
+async def relay_outbox_events():
+    """
+    Polls outbox_events and:
+    1. Publishes to Pub/Sub (for real-time updates/cache invalidation).
+    2. Enqueues to ARQ (for heavy/critical background tasks).
+    """
+    from arq import create_pool
+    arq_pool = await create_pool(get_redis_settings())
+
+    while True:
+        try:
+            async with AsyncSessionLocal() as db:
+                # Optimized query for outbox
+                stmt = select(OutboxEvent).where(OutboxEvent.processed == False).limit(20)
+                result = await db.execute(stmt)
+                events = result.scalars().all()
+
+                for event in events:
+                    # 1. PubSub for real-time notifications/UI
+                    await publish_event(event.event_type, event.payload)
+                    
+                    # 2. ARQ for reliable heavy tasks
+                    if event.event_type == "note.signed":
+                        await arq_pool.enqueue_job('handle_note_signed_task', event.payload)
+                    
+                    event.processed = True
+                    event.processed_at = datetime.utcnow()
+                
+                if events:
+                    await db.commit()
+        except Exception as e:
+            logger.error(f"Outbox relay error: {str(e)}", exc_info=True)
         
-        # Approved Metadata Extraction
-        correlation_id = event.get("correlation_id")
-        organization_id = event_data.get("organization_id")
+        await asyncio.sleep(1)
 
-        logger.info(
-            f"Message received: {event_type}", 
-            extra={
-                "event_type": event_type, 
-                "correlation_id": correlation_id, 
-                "organization_id": organization_id
-            }
-        )
+# --- ARQ Worker Configuration ---
 
-        # Workspace cache logic
-        encounter_id = event_data.get("encounter_id")
-        if encounter_id:
-            await r.delete(f"workspace:{encounter_id}")
-            await r.publish(f"workspace_updates:{encounter_id}", json.dumps(event))
-
-        if event_type == "note.signed":
-            await handle_note_signed(event_data)
-            
-        logger.info(
-            "Message processed", 
-            extra={
-                "event_type": event_type, 
-                "correlation_id": correlation_id, 
-                "organization_id": organization_id
-            }
-        )
-
-async def run():
+class WorkerSettings:
     """
-    Main worker entry point.
+    Configuration for the ARQ worker process.
+    Run with: arq app.worker.realtime_worker.WorkerSettings
     """
-    logger.info("Worker started")
-    await asyncio.gather(
-        run_listener(),
-        relay_outbox_events(),
-        run_appointment_scheduler()
-    )
+    functions = [handle_note_signed_task]
+    redis_settings = get_redis_settings()
+    
+    @staticmethod
+    async def on_startup(ctx):
+        logger.info("ARQ Worker starting...")
+        # Start our custom loops in the background within the ARQ process
+        ctx['scheduler_task'] = asyncio.create_task(run_appointment_scheduler())
+        ctx['outbox_task'] = asyncio.create_task(relay_outbox_events())
+
+    @staticmethod
+    async def on_shutdown(ctx):
+        logger.info("ARQ Worker shutting down...")
+        if 'scheduler_task' in ctx:
+            ctx['scheduler_task'].cancel()
+        if 'outbox_task' in ctx:
+            ctx['outbox_task'].cancel()
 
 if __name__ == "__main__":
-    from app.core.logging import configure_logging
-    configure_logging()
-    
-    try:
-        asyncio.run(run())
-    except KeyboardInterrupt:
-        logger.info("Worker stopped by user")
+    # Fallback to run manually if needed, but 'arq' command is preferred
+    import uvicorn
+    print("Use 'arq app.worker.realtime_worker.WorkerSettings' to run this worker.")

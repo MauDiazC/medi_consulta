@@ -86,6 +86,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # --- Idempotency (Professional Layer)
+    from app.core.idempotency import IdempotencyMiddleware
+    app.add_middleware(IdempotencyMiddleware, redis_url=settings.REDIS_URL)
+
     # Initialize Prometheus Metrics
     Instrumentator().instrument(app).expose(app)
 

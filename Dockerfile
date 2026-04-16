@@ -44,6 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /app/.venv /app/.venv
 COPY . .
 
+# ... (Stage 1 and system libs remain the same) ...
 # Set environment variables
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
@@ -51,5 +52,5 @@ ENV PYTHONUNBUFFERED=1
 # Expose port
 EXPOSE 8000
 
-# Use shell form to allow command chaining and environment variable expansion
-CMD alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+# Default command for the API service
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
