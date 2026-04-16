@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.responses import StreamingResponse
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
-from app.modules.notes.repository import NotesRepository
+from app.modules.notes.repository import ClinicalNoteRepository
 from .service import TTSService
 import uuid
 
@@ -23,12 +23,12 @@ async def read_prescription(
     Only authorized personnel can request this.
     """
     # 1. Fetch note
-    repo = NotesRepository(db)
-    note = await repo.get_note_by_id(note_id)
-    
+    repo = ClinicalNoteRepository(db)
+    note = await repo.get(str(note_id))
+
     if not note:
         raise HTTPException(status_code=404, detail="Nota clínica no encontrada.")
-    
+...
     plan_text = note.get("plan")
     if not plan_text:
         raise HTTPException(status_code=400, detail="La nota no contiene un plan o receta para leer.")

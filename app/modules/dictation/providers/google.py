@@ -1,44 +1,42 @@
-import google.generativeai as genai
+from google import genai
 from app.core.config import settings
 from .base import SpeechProvider
 import logging
-import anyio
+import asyncio
 
 logger = logging.getLogger("dictation.google")
 
 class GoogleSpeechProvider(SpeechProvider):
     """
-    STT Provider using Google Gemini 1.5 Flash.
+    STT Provider using Google Gemini 1.5 Flash (New SDK).
     Uses multimodal capabilities to transcribe audio.
     """
     
     def __init__(self):
         if settings.get("GOOGLE_AI_API_KEY"):
-            genai.configure(api_key=settings.GOOGLE_AI_API_KEY)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.client = genai.Client(api_key=settings.GOOGLE_AI_API_KEY)
         else:
-            self.model = None
+            self.client = None
             logger.warning("GOOGLE_AI_API_KEY not found. STT will be disabled.")
 
     async def transcribe_chunk(self, audio: bytes) -> str:
         """
         Multimodal transcription using Gemini.
         """
-        if not self.model:
+        if not self.client:
             return ""
 
         try:
-            # Prepare audio part
-            audio_part = {
-                "mime_type": "audio/wav",
-                "data": audio
-            }
-            
             prompt = "Transcribe exactamente lo que se dice en este audio médico. No añadidas nada más."
             
-            # Execute in thread to avoid blocking if the SDK is not fully async friendly
-            response = await anyio.to_thread.run_sync(
-                lambda: self.model.generate_content([prompt, audio_part])
+            # Using the new SDK structure for multimodal
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model='gemini-1.5-flash',
+                contents=[
+                    prompt,
+                    genai.types.Part.from_bytes(data=audio, mime_type="audio/wav")
+                ]
             )
             
             return response.text.strip()

@@ -1,6 +1,6 @@
 import logging
 from typing import AsyncIterator
-from elevenlabs import AsyncElevenLabs
+from elevenlabs.client import AsyncElevenLabs
 from app.core.config import settings
 from fastapi import HTTPException
 

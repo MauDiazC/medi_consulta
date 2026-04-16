@@ -1,22 +1,23 @@
 import json
 import logging
-import google.generativeai as genai
+from google import genai
 from app.core.config import settings
 from datetime import datetime, timezone
 import os
 import httpx
+import asyncio
 
 logger = logging.getLogger("appointments.notifier")
 
 class AppointmentNotifier:
     def __init__(self):
         self.n8n_url = os.getenv("N8N_WHATSAPP_WEBHOOK_URL")
-        # Initialize Google Gemini
+        # Initialize Google GenAI (New SDK)
         if settings.get("GOOGLE_AI_API_KEY"):
-            genai.configure(api_key=settings.GOOGLE_AI_API_KEY)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.client = genai.Client(api_key=settings.GOOGLE_AI_API_KEY)
         else:
-            self.model = None
+            self.client = None
+            logger.warning("GOOGLE_AI_API_KEY not configured. AI reminders will be disabled.")
 
     async def generate_ai_message(self, patient_name: str, doctor_name: str, scheduled_at: str, reason: str, reminder_type: str):
         """
@@ -37,12 +38,16 @@ class AppointmentNotifier:
         Responde ÚNICAMENTE con el texto del mensaje.
         """
 
-        if not self.model:
+        if not self.client:
             return f"Hola {patient_name}, te recordamos tu cita con el Dr. {doctor_name} el {scheduled_at}. ¡Te esperamos!"
 
         try:
-            # Gemini execution
-            response = await self.model.generate_content_async(prompt)
+            # Gemini execution with new SDK
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model='gemini-1.5-flash',
+                contents=prompt
+            )
             return response.text.strip()
         except Exception as e:
             logger.error(f"Google Gemini error: {str(e)}")

@@ -1,29 +1,28 @@
 import json
 import logging
-import google.generativeai as genai
+from google import genai
 from app.core.config import settings
-import anyio
+import asyncio
 
 logger = logging.getLogger("dictation.soap")
 
 class SOAPClassifier:
     """
-    Clinical Intelligence Layer using Google Gemini.
+    Clinical Intelligence Layer using Google Gemini (New SDK).
     Classifies and cleans medical dictation into SOAP sections.
     """
     
     def __init__(self):
         if settings.get("GOOGLE_AI_API_KEY"):
-            genai.configure(api_key=settings.GOOGLE_AI_API_KEY)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.client = genai.Client(api_key=settings.GOOGLE_AI_API_KEY)
         else:
-            self.model = None
+            self.client = None
 
     async def classify(self, text: str):
         """
         Organizes clinical text into structured SOAP format.
         """
-        if not self.model:
+        if not self.client:
             return {"section": "Subjective", "content": text}
 
         prompt = f"""
@@ -45,14 +44,14 @@ class SOAPClassifier:
         """
 
         try:
-            # Execute Gemini chat
-            response = await anyio.to_thread.run_sync(
-                lambda: self.model.generate_content(
-                    prompt,
-                    generation_config=genai.types.GenerationConfig(
-                        temperature=0.1,
-                        response_mime_type="application/json"
-                    )
+            # Execute Gemini chat with new SDK
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model='gemini-1.5-flash',
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    temperature=0.1,
+                    response_mime_type="application/json"
                 )
             )
             
