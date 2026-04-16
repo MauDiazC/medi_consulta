@@ -25,6 +25,7 @@ from app.modules.patients.router import router as patients_router
 from app.modules.users.router import router as users_router
 from app.modules.workspace.router import router as workspace_router
 from app.modules.appointments.router import router as appointments_router
+from app.modules.tts.router import router as tts_router
 
 
 def create_app() -> FastAPI:
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(note_sign_router)
     app.include_router(verify_router)
     app.include_router(appointments_router)
+    app.include_router(tts_router)
 
     return app
 

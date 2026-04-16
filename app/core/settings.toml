@@ -11,6 +11,8 @@ DEFAULT_FROM_EMAIL = "noreply@mediconsulta.com"
 RESEND_API_KEY = "re_123456789"
 GOOGLE_AI_API_KEY = "dummy-key"
 GOOGLE_CLIENT_ID = "dummy-client-id"
+ELEVENLABS_API_KEY = "dummy-eleven-key"
+ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM" # Rachel (default voice)
 
 [production]
 # Overrides for production - KEYS SHOULD BE IN RAILWAY ENV VARS
