@@ -18,6 +18,9 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
 
+class GoogleLoginRequest(BaseModel):
+    credential: str # The ID Token from Google Frontend
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

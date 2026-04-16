@@ -25,8 +25,9 @@ core_validators = [
 
 # 2. Servicios Externos (Opcionales o específicos)
 external_validators = [
-    Validator("GROQ_API_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    # Supabase ya no es requerido para Auth
+    Validator("GOOGLE_AI_API_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator("GOOGLE_CLIENT_ID", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator("RESEND_API_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
 ]
 
 # Nota: En Railway, si usas Supabase para Auth, DEBES poner las variables.

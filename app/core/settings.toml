@@ -8,7 +8,9 @@ DEFAULT_FROM_EMAIL = "noreply@mediconsulta.com"
 
 [development]
 # Overrides for development
-RESEND_API_KEY = "re_123456789" # Mock for dev
+RESEND_API_KEY = "re_123456789"
+GOOGLE_AI_API_KEY = "dummy-key"
+GOOGLE_CLIENT_ID = "dummy-client-id"
 
 [production]
-# Overrides for production - SECRET_KEY SHOULD BE IN .secrets.toml OR ENV VARS
+# Overrides for production - KEYS SHOULD BE IN RAILWAY ENV VARS

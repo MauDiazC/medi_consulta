@@ -3,7 +3,10 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from app.core.security import (create_access_token, verify_password, hash_password)
 from app.core.email import EmailService
+from app.core.config import settings
 from .repository import AuthRepository
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 class AuthService:
 
@@ -81,19 +84,69 @@ class AuthService:
 
         return token
 
+    async def google_login(self, credential: str, client_info: dict = None):
+        """
+        Verifies Google ID Token and manages user lifecycle.
+        Bridges Google Identity with Institutional Authorization.
+        """
+        try:
+            # 1. Verify Google Identity
+            idinfo = id_token.verify_oauth2_token(
+                credential, requests.Request(), settings.GOOGLE_CLIENT_ID
+            )
+
+            # 2. Extract Identity Claims
+            email = idinfo['email']
+            full_name = idinfo.get('name', 'Google User')
+            
+            # 3. Resolve Domain Identity
+            user = await self.repo.get_user_by_email(email)
+
+            if not user:
+                # 4. Auto-provisioning (First login via Google)
+                # Password hash is NULL for social users (cannot login via password unless reset)
+                user = await self.repo.create_user(
+                    email=email,
+                    full_name=full_name,
+                    password_hash=None, 
+                    role="doctor"
+                )
+                await self.repo.commit()
+            
+            # 5. Notify and issue Institutional Token
+            await EmailService.send_login_notification(
+                self.repo.db, 
+                email, 
+                client_info or {"method": "google", "timestamp": datetime.now(timezone.utc).isoformat()}
+            )
+            await self.repo.commit()
+
+            org_id = str(user["organization_id"]) if user["organization_id"] else None
+            
+            return create_access_token({
+                "sub": str(user["id"]),
+                "email": user["email"],
+                "org": org_id,
+                "role": user["role"],
+            })
+
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Google authentication failed: {str(e)}"
+            )
+
     async def forgot_password(self, email: str):
         """Generates a secure reset token and sends it via email."""
         user = await self.repo.get_user_by_email(email)
         
-        # Security Note: We don't reveal if the user exists for privacy, 
-        # but in this internal medical system we might prioritize usability.
         if user:
             token = secrets.token_urlsafe(32)
             await self.repo.create_reset_token(str(user["id"]), token)
             await EmailService.send_password_reset(self.repo.db, email, token)
             await self.repo.commit()
         
-        return True # Always return success to prevent user enumeration
+        return True 
 
     async def reset_password(self, token: str, new_password: str):
         """Verifies reset token and updates password."""

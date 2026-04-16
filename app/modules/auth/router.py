@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status, Request
 from app.core.database import get_db
 from .repository import AuthRepository
-from .schemas import LoginRequest, TokenResponse, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest
+from .schemas import LoginRequest, TokenResponse, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest, GoogleLoginRequest
 from .service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -28,6 +28,17 @@ async def login(request: Request, payload: LoginRequest, s=Depends(get_service))
         "host": request.client.host,
     }
     token = await s.login(payload.email, payload.password, client_info=client_info)
+    return {"access_token": token, "token_type": "bearer"}
+
+@router.post("/google", response_model=TokenResponse)
+async def google_login(request: Request, payload: GoogleLoginRequest, s=Depends(get_service)):
+    """Institutional Google Social Auth."""
+    client_info = {
+        "user_agent": request.headers.get("user-agent"),
+        "host": request.client.host,
+        "method": "google"
+    }
+    token = await s.google_login(payload.credential, client_info=client_info)
     return {"access_token": token, "token_type": "bearer"}
 
 @router.post("/forgot-password")

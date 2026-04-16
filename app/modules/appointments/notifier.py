@@ -1,18 +1,26 @@
 import json
-import httpx
 import logging
+import google.generativeai as genai
 from app.core.config import settings
+from datetime import datetime, timezone
+import os
+import httpx
 
 logger = logging.getLogger("appointments.notifier")
 
 class AppointmentNotifier:
     def __init__(self):
         self.n8n_url = os.getenv("N8N_WHATSAPP_WEBHOOK_URL")
-        self.groq_key = settings.GROQ_API_KEY
+        # Initialize Google Gemini
+        if settings.get("GOOGLE_AI_API_KEY"):
+            genai.configure(api_key=settings.GOOGLE_AI_API_KEY)
+            self.model = genai.GenerativeModel('gemini-1.5-flash')
+        else:
+            self.model = None
 
     async def generate_ai_message(self, patient_name: str, doctor_name: str, scheduled_at: str, reason: str, reminder_type: str):
         """
-        Generates a personalized WhatsApp message using Groq.
+        Generates a personalized WhatsApp message using Google Gemini.
         reminder_type: 'immediate', '8h', '15m'
         """
         prompt = f"""
@@ -29,22 +37,15 @@ class AppointmentNotifier:
         Responde ÚNICAMENTE con el texto del mensaje.
         """
 
+        if not self.model:
+            return f"Hola {patient_name}, te recordamos tu cita con el Dr. {doctor_name} el {scheduled_at}. ¡Te esperamos!"
+
         try:
-            async with httpx.AsyncClient() as client:
-                r = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {self.groq_key}"},
-                    json={
-                        "model": "llama-3.3-70b-versatile",
-                        "messages": [{"role": "user", "content": prompt}],
-                        "temperature": 0.7,
-                    },
-                    timeout=10.0
-                )
-                data = r.json()
-                return data["choices"][0]["message"]["content"].strip()
+            # Gemini execution
+            response = await self.model.generate_content_async(prompt)
+            return response.text.strip()
         except Exception as e:
-            logger.error(f"Groq AI error: {str(e)}")
+            logger.error(f"Google Gemini error: {str(e)}")
             # Fallback message
             return f"Hola {patient_name}, te recordamos tu cita con el Dr. {doctor_name} el {scheduled_at}. ¡Te esperamos!"
 
@@ -68,6 +69,3 @@ class AppointmentNotifier:
                 await client.post(self.n8n_url, json=payload, timeout=5.0)
         except Exception as e:
             logger.error(f"n8n webhook error: {str(e)}")
-
-import os
-from datetime import datetime, timezone
