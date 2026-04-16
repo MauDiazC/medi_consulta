@@ -1,0 +1,14 @@
+# Mediconsulta Core Settings
+
+[default]
+SECRET_KEY = "CHANGE_ME_IN_PRODUCTION_USE_A_SECURE_RANDOM_STRING"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 480 # 8 hours
+DEFAULT_FROM_EMAIL = "noreply@mediconsulta.com"
+
+[development]
+# Overrides for development
+RESEND_API_KEY = "re_123456789" # Mock for dev
+
+[production]
+# Overrides for production - SECRET_KEY SHOULD BE IN .secrets.toml OR ENV VARS

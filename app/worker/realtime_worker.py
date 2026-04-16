@@ -2,7 +2,8 @@ import json
 import anyio
 import asyncio
 import logging
-from datetime import datetime
+import resend
+from datetime import datetime, timezone
 from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
@@ -13,10 +14,75 @@ from app.modules.notes.signing.pdf_render import render_snapshot_pdf
 from app.modules.appointments.service import AppointmentService
 from app.modules.appointments.repository import AppointmentRepository
 from app.core.worker_settings import get_redis_settings
+from app.core.config import settings
 
 logger = logging.getLogger("worker")
 
+# Initialize Resend
+resend.api_key = settings.RESEND_API_KEY
+
 # --- ARQ Tasks ---
+
+async def handle_login_notification_task(ctx, event_data: dict):
+    """
+    ARQ Task: Sends a security notification email on successful login.
+    """
+    to_email = event_data.get("to")
+    metadata = event_data.get("metadata", {})
+    
+    try:
+        html_content = f"""
+        <h2>Nuevo inicio de sesión detectado</h2>
+        <p>Hola, se ha detectado un nuevo inicio de sesión en tu cuenta de Mediconsulta.</p>
+        <ul>
+            <li><b>Fecha:</b> {metadata.get('timestamp')}</li>
+            <li><b>Navegador:</b> {metadata.get('user_agent')}</li>
+            <li><b>IP:</b> {metadata.get('host')}</li>
+        </ul>
+        <p>Si no fuiste tú, por favor contacta a soporte de inmediato.</p>
+        """
+        
+        resend.Emails.send({
+            "from": settings.DEFAULT_FROM_EMAIL,
+            "to": to_email,
+            "subject": "Seguridad: Nuevo inicio de sesión",
+            "html": html_content
+        })
+        logger.info(f"Login notification email sent to {to_email}")
+    except Exception as e:
+        logger.error(f"Error sending login email: {str(e)}")
+        raise e
+
+async def handle_password_reset_task(ctx, event_data: dict):
+    """
+    ARQ Task: Sends a password reset link to the user.
+    """
+    to_email = event_data.get("to")
+    token = event_data.get("token")
+    
+    try:
+        # En una app real, aquí pondrías la URL de tu frontend
+        reset_url = f"https://app.mediconsulta.com/reset-password?token={token}"
+        
+        html_content = f"""
+        <h2>Recuperación de Contraseña</h2>
+        <p>Has solicitado restablecer tu contraseña en Mediconsulta.</p>
+        <p>Haz clic en el siguiente enlace para continuar:</p>
+        <a href="{reset_url}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Restablecer Contraseña</a>
+        <p>Este enlace expirará en 60 minutos.</p>
+        <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+        """
+        
+        resend.Emails.send({
+            "from": settings.DEFAULT_FROM_EMAIL,
+            "to": to_email,
+            "subject": "Recuperación de contraseña - Mediconsulta",
+            "html": html_content
+        })
+        logger.info(f"Password reset email sent to {to_email}")
+    except Exception as e:
+        logger.error(f"Error sending reset email: {str(e)}")
+        raise e
 
 async def handle_note_signed_task(ctx, event_data: dict):
     """
@@ -81,9 +147,13 @@ async def relay_outbox_events():
                     # 2. ARQ for reliable heavy tasks
                     if event.event_type == "note.signed":
                         await arq_pool.enqueue_job('handle_note_signed_task', event.payload)
+                    elif event.event_type == "auth.login_notification":
+                        await arq_pool.enqueue_job('handle_login_notification_task', event.payload)
+                    elif event.event_type == "auth.password_reset":
+                        await arq_pool.enqueue_job('handle_password_reset_task', event.payload)
                     
                     event.processed = True
-                    event.processed_at = datetime.utcnow()
+                    event.processed_at = datetime.now(timezone.utc)
                 
                 if events:
                     await db.commit()
@@ -99,7 +169,11 @@ class WorkerSettings:
     Configuration for the ARQ worker process.
     Run with: arq app.worker.realtime_worker.WorkerSettings
     """
-    functions = [handle_note_signed_task]
+    functions = [
+        handle_note_signed_task, 
+        handle_login_notification_task, 
+        handle_password_reset_task
+    ]
     redis_settings = get_redis_settings()
     
     @staticmethod
