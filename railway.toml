@@ -19,4 +19,4 @@ startCommand = "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
 name = "worker"
 restartPolicy = "ALWAYS"
 # No networking needed for worker
-startCommand = "arq app.worker.realtime_worker.WorkerSettings"
+startCommand = "python -m arq app.worker.realtime_worker.WorkerSettings"
