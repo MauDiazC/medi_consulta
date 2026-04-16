@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = 'auth_reset_001'
-down_revision = 'b3630857c370'
+down_revision = 'add_appointments_and_core'
 branch_labels = None
 depends_on = None
 
