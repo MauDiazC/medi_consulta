@@ -28,7 +28,7 @@ async def read_prescription(
 
     if not note:
         raise HTTPException(status_code=404, detail="Nota clínica no encontrada.")
-...
+
     plan_text = note.get("plan")
     if not plan_text:
         raise HTTPException(status_code=400, detail="La nota no contiene un plan o receta para leer.")
