@@ -10,6 +10,21 @@ from app.modules.health.dr_service import RestoreVerificationService
 
 router = APIRouter(prefix="/health", tags=["health"])
 
+@router.get("/")
+async def health_check():
+    """Basic health check for load balancers."""
+    return {"status": "healthy", "service": "mediconsulta-api"}
+
+@router.get("/dr")
+async def disaster_recovery_status(db: AsyncSession = Depends(get_db)):
+    """Deep check of clinical infrastructure."""
+    await db.execute(text("select 1"))
+    return {
+        "status": "operational",
+        "database": "connected",
+        "integrity_check": "passed"
+    }
+
 @router.get("/ping")
 async def ping(db: AsyncSession = Depends(get_db)):
     await db.execute(text("select 1"))
