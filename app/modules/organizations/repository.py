@@ -46,11 +46,20 @@ class OrganizationRepository:
         r = await self.db.execute(
             text("""
                 UPDATE organizations
-                SET name = COALESCE(:name, name)
+                SET name = COALESCE(:name, name),
+                    address = COALESCE(:address, address),
+                    phone = COALESCE(:phone, phone),
+                    description = COALESCE(:description, description)
                 WHERE id = CAST(:id AS UUID)
                 RETURNING *
             """),
-            {"id": org_id, "name": payload.name},
+            {
+                "id": org_id, 
+                "name": payload.name,
+                "address": payload.address,
+                "phone": payload.phone,
+                "description": payload.description
+            },
         )
         # Commit removed for service orchestration
         return r.mappings().first()
