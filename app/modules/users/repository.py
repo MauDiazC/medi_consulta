@@ -14,7 +14,7 @@ class UserRepository:
                     email,password_hash,full_name,role,
                     organization_id,active
                 )
-                VALUES(:e,:p,:f,:r,:o,true)
+                VALUES(:e,:p,:f,:r,CAST(:o AS UUID),true)
                 RETURNING *
             """),
             {"e": email, "p": password_hash, "f": full_name, "r": role, "o": org},
@@ -27,7 +27,7 @@ class UserRepository:
             text("""
                 SELECT *
                 FROM users
-                WHERE organization_id=:org
+                WHERE organization_id=CAST(:org AS UUID)
                 AND active=true
                 LIMIT :limit OFFSET :offset
             """),
@@ -40,7 +40,7 @@ class UserRepository:
             text("""
                 SELECT *
                 FROM users
-                WHERE id=:id AND organization_id=:org
+                WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)
             """),
             {"id": user_id, "org": org},
         )
@@ -51,7 +51,7 @@ class UserRepository:
             text("""
                 UPDATE users
                 SET role = COALESCE(:role, role)
-                WHERE id=:id AND organization_id=:org
+                WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)
                 RETURNING *
             """),
             {"id": user_id, "org": org, "role": payload.role},
@@ -64,7 +64,7 @@ class UserRepository:
             text("""
                 UPDATE users
                 SET active=false
-                WHERE id=:id AND organization_id=:org
+                WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)
             """),
             {"id": user_id, "org": org},
         )
@@ -75,7 +75,7 @@ class UserRepository:
         Authoritative method for bootstrap onboarding linkage.
         """
         await self.db.execute(
-            text("UPDATE users SET organization_id = :org_id WHERE id = :user_id"),
+            text("UPDATE users SET organization_id = CAST(:org_id AS UUID) WHERE id = CAST(:user_id AS UUID)"),
             {"org_id": organization_id, "user_id": user_id}
         )
 
