@@ -8,7 +8,7 @@ logger = logging.getLogger("dictation.google")
 
 class GoogleSpeechProvider(SpeechProvider):
     """
-    STT Provider using Google Gemini 1.5 Flash (New SDK).
+    STT Provider using Google Gemini (New SDK).
     Uses multimodal capabilities to transcribe audio.
     """
     
@@ -27,18 +27,22 @@ class GoogleSpeechProvider(SpeechProvider):
             return ""
 
         try:
-            prompt = "Transcribe exactamente lo que se dice en este audio médico. No añadidas nada más."
+            prompt = "Transcribe exactamente lo que se dice en este audio médico. No añadas nada más."
             
-            # Using the new SDK structure for multimodal
+            # Using the latest stable model identifier
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model='gemini-1.5-flash',
+                model='gemini-2.0-flash',
                 contents=[
                     prompt,
                     genai.types.Part.from_bytes(data=audio, mime_type="audio/wav")
                 ]
             )
             
+            if not response.text:
+                logger.warning("Gemini returned empty text for audio.")
+                return ""
+                
             return response.text.strip()
             
         except Exception as e:
