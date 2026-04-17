@@ -29,10 +29,10 @@ class GoogleSpeechProvider(SpeechProvider):
         try:
             prompt = "Transcribe exactamente lo que se dice en este audio médico. No añadas nada más."
             
-            # Using the confirmed available model from your list
+            # Using the latest 2.5 model confirmed in your account
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model='gemini-2.0-flash',
+                model='gemini-2.5-flash',
                 contents=[
                     prompt,
                     genai.types.Part.from_bytes(data=audio, mime_type="audio/wav")
