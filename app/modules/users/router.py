@@ -70,6 +70,16 @@ async def deactivate_user(
     return await s.deactivate(user_id, user["org"])
 
 
+@router.patch("/{user_id}/activate")
+async def activate_user(
+    user_id: str,
+    user=Depends(require_role("admin")),
+    s=Depends(get_service),
+):
+    """Re-enables an inactive user."""
+    return await s.activate(user_id, user["org"])
+
+
 @router.delete("/{user_id}/purge")
 async def hard_delete_user(
     user_id: str,

@@ -50,3 +50,8 @@ class UserService:
         await self.repo.deactivate(user_id, org)
         await self.repo.db.commit()
         return {"status": "deactivated"}
+
+    async def activate(self, user_id, org):
+        await self.repo.activate(user_id, org)
+        await self.repo.db.commit()
+        return {"status": "activated"}

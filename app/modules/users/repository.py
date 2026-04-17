@@ -70,6 +70,18 @@ class UserRepository:
         )
         # Commit removed for service-level atomicity
 
+    async def activate(self, user_id, org):
+        """Re-enables a user account."""
+        await self.db.execute(
+            text("""
+                UPDATE users
+                SET active=true
+                WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)
+            """),
+            {"id": user_id, "org": org},
+        )
+        # Commit removed for service-level atomicity
+
     async def assign_organization(self, user_id: str, organization_id: str):
         """
         Authoritative method for bootstrap onboarding linkage.
