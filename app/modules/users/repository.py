@@ -7,17 +7,17 @@ class UserRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, email, password_hash, role, org):
+    async def create(self, email, password_hash, full_name, role, org):
         r = await self.db.execute(
             text("""
                 INSERT INTO users(
-                    email,password_hash,role,
+                    email,password_hash,full_name,role,
                     organization_id,active
                 )
-                VALUES(:e,:p,:r,:o,true)
+                VALUES(:e,:p,:f,:r,:o,true)
                 RETURNING *
             """),
-            {"e": email, "p": password_hash, "r": role, "o": org},
+            {"e": email, "p": password_hash, "f": full_name, "r": role, "o": org},
         )
         # Commit removed for service-level atomicity
         return r.mappings().first()
@@ -78,3 +78,11 @@ class UserRepository:
             text("UPDATE users SET organization_id = :org_id WHERE id = :user_id"),
             {"org_id": organization_id, "user_id": user_id}
         )
+
+    async def get_by_email(self, email: str):
+        """Fetch user by email for authentication or bootstrap checks."""
+        r = await self.db.execute(
+            text("SELECT * FROM users WHERE email = :email"),
+            {"email": email.lower().strip()}
+        )
+        return r.mappings().first()
