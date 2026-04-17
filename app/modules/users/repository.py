@@ -86,3 +86,11 @@ class UserRepository:
             {"email": email.lower().strip()}
         )
         return r.mappings().first()
+
+    async def hard_delete_by_email(self, email: str):
+        """DANGER: Physical deletion of user. Use only for dev/testing."""
+        await self.db.execute(
+            text("DELETE FROM users WHERE email = :email"),
+            {"email": email.lower().strip()}
+        )
+        await self.db.commit()

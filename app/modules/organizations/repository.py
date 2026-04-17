@@ -65,3 +65,11 @@ class OrganizationRepository:
             {"id": org_id},
         )
         # Commit removed for service orchestration
+
+    async def hard_delete(self, org_id: str):
+        """DANGER: Physical deletion. Use only for dev/testing."""
+        await self.db.execute(
+            text("DELETE FROM organizations WHERE id = :id"),
+            {"id": org_id}
+        )
+        await self.db.commit()

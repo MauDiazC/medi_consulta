@@ -76,6 +76,40 @@ def bootstrap_saas():
         raise typer.Exit(code=1)
 
 @app.command()
+def purge_onboarding(email: str):
+    """
+    DANGER: Physically deletes a user and their linked organization.
+    Use this to 'restart' the onboarding flow for a specific email.
+    """
+    async def _run():
+        async with AsyncSession(engine) as db:
+            user_repo = UserRepository(db)
+            org_repo = OrganizationRepository(db)
+
+            user = await user_repo.get_by_email(email)
+            if not user:
+                print(f"[yellow]! User {email} not found.[/yellow]")
+                return
+
+            org_id = user["organization_id"]
+            
+            print(f"[red]Deleting User: {email}[/red]")
+            await user_repo.hard_delete_by_email(email)
+
+            if org_id:
+                print(f"[red]Deleting Organization: {org_id}[/red]")
+                await org_repo.hard_delete(str(org_id))
+            
+            await db.commit()
+            print("[bold green]✔ Purge complete. You can now register again.[/bold green]")
+
+    try:
+        asyncio.run(_run())
+    except Exception as e:
+        print(f"[red]Error during purge: {str(e)}[/red]")
+        raise typer.Exit(code=1)
+
+@app.command()
 def version() -> None:
     """Show application version."""
     print(f"[bold]Mediconsulta v{settings.VERSION}[/bold]")
