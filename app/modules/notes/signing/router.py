@@ -90,7 +90,12 @@ async def deactivate_user_identity(
 ):
     """Admin only: Revokes the professional identity of a specific user in the org."""
     repo = ProfessionalIdentityRepository(db)
-    await repo.deactivate(user_id, user["org"])
+    updated = await repo.deactivate(user_id, user["org"])
+    if not updated:
+        raise HTTPException(
+            status_code=404, 
+            detail="Professional identity not found for this user in your organization."
+        )
     return {"status": "deactivated", "user_id": user_id}
 
 @router.patch("/professional-identity/{user_id}/activate")
@@ -101,7 +106,12 @@ async def activate_user_identity(
 ):
     """Admin only: Re-enables the professional identity of a specific user in the org."""
     repo = ProfessionalIdentityRepository(db)
-    await repo.activate(user_id, user["org"])
+    updated = await repo.activate(user_id, user["org"])
+    if not updated:
+        raise HTTPException(
+            status_code=404, 
+            detail="Professional identity not found for this user in your organization."
+        )
     return {"status": "activated", "user_id": user_id}
 
 # --- Personal Identity Management ---

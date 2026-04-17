@@ -9,7 +9,7 @@ class ProfessionalIdentityRepository:
 
     async def register(self, user_id, org_id, public_key_pem, license_number, specialty=None):
         """Creates or updates the professional identity of a physician."""
-        # UPSERT logic using PostgreSQL syntax
+        # UPSERT logic: Preserve is_active if already exists
         await self.db.execute(
             text("""
                 INSERT INTO professional_identities (
@@ -22,7 +22,6 @@ class ProfessionalIdentityRepository:
                     public_key_pem = EXCLUDED.public_key_pem,
                     license_number = EXCLUDED.license_number,
                     specialty = EXCLUDED.specialty,
-                    is_active = true,
                     updated_at = NOW()
             """),
             {
@@ -62,9 +61,9 @@ class ProfessionalIdentityRepository:
         )
         return r.mappings().all()
 
-    async def deactivate(self, user_id: str, org_id: str):
-        """Disables the professional identity."""
-        await self.db.execute(
+    async def deactivate(self, user_id: str, org_id: str) -> bool:
+        """Disables the professional identity. Returns True if updated."""
+        result = await self.db.execute(
             text("""
                 UPDATE professional_identities 
                 SET is_active = false, updated_at = NOW()
@@ -73,10 +72,11 @@ class ProfessionalIdentityRepository:
             {"uid": user_id, "oid": org_id}
         )
         await self.db.commit()
+        return result.rowcount > 0
 
-    async def activate(self, user_id: str, org_id: str):
-        """Re-enables the professional identity."""
-        await self.db.execute(
+    async def activate(self, user_id: str, org_id: str) -> bool:
+        """Re-enables the professional identity. Returns True if updated."""
+        result = await self.db.execute(
             text("""
                 UPDATE professional_identities 
                 SET is_active = true, updated_at = NOW()
@@ -85,3 +85,4 @@ class ProfessionalIdentityRepository:
             {"uid": user_id, "oid": org_id}
         )
         await self.db.commit()
+        return result.rowcount > 0
