@@ -13,7 +13,7 @@ class PatientRepository:
                     first_name,last_name,
                     organization_id,active
                 )
-                VALUES(:f,:l,:o,true)
+                VALUES(:f,:l,CAST(:o AS UUID),true)
                 RETURNING *
             """),
             {"f": payload.first_name, "l": payload.last_name, "o": org},
@@ -26,8 +26,9 @@ class PatientRepository:
             text("""
                 SELECT *
                 FROM patients
-                WHERE organization_id=:org
+                WHERE organization_id=CAST(:org AS UUID)
                 AND active=true
+                ORDER BY created_at DESC
                 LIMIT :limit OFFSET :offset
             """),
             {"org": org, "limit": limit, "offset": offset},
@@ -39,7 +40,7 @@ class PatientRepository:
             text("""
                 SELECT *
                 FROM patients
-                WHERE id=:id AND organization_id=:org
+                WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)
             """),
             {"id": patient_id, "org": org},
         )
@@ -51,7 +52,7 @@ class PatientRepository:
                 UPDATE patients
                 SET first_name = COALESCE(:f, first_name),
                     last_name  = COALESCE(:l, last_name)
-                WHERE id=:id AND organization_id=:org
+                WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)
                 RETURNING *
             """),
             {
@@ -69,7 +70,7 @@ class PatientRepository:
             text("""
                 UPDATE patients
                 SET active=false
-                WHERE id=:id AND organization_id=:org
+                WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)
             """),
             {"id": patient_id, "org": org},
         )
