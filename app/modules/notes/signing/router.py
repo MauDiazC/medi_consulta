@@ -6,8 +6,42 @@ from app.core.dependencies import get_current_user
 from app.modules.notes.signing.service import SigningApplicationService
 from app.modules.notes.repository import ClinicalNoteRepository
 from app.modules.notes.signing.models import NoteSnapshot
+from app.modules.notes.signing.identity_repository import ProfessionalIdentityRepository
+from app.modules.notes.signing.schemas import ProfessionalIdentitySetup
 
 router = APIRouter(prefix="/notes/signing", tags=["signing"])
+
+@router.post("/professional-identity")
+async def setup_professional_identity(
+    payload: ProfessionalIdentitySetup,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Physician Onboarding: Register public key and license.
+    Ensures future signatures can be verified without re-uploading keys.
+    """
+    repo = ProfessionalIdentityRepository(db)
+    await repo.register(
+        user_id=user["sub"],
+        org_id=user["org"],
+        public_key_pem=payload.public_key_pem,
+        license_number=payload.license_number,
+        specialty=payload.specialty
+    )
+    return {"message": "Professional identity successfully registered."}
+
+@router.get("/professional-identity/me")
+async def get_my_identity(
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Checks the current registration of professional metadata."""
+    repo = ProfessionalIdentityRepository(db)
+    identity = await repo.get_by_user(user["sub"], user["org"])
+    if not identity:
+        raise HTTPException(status_code=404, detail="Identity not found. Please register first.")
+    return identity
 
 @router.post("/sign/{note_id}")
 async def sign_note_endpoint(
@@ -16,14 +50,16 @@ async def sign_note_endpoint(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    note, version = await ClinicalNoteRepository(db).get_note_and_version(note_id)
+    repo = ClinicalNoteRepository(db)
+    # Validate organization isolation
+    note = await repo.get(note_id, user["org"])
     if not note:
         raise HTTPException(404, "Note not found")
 
     signing_app = SigningApplicationService(db)
     return await signing_app.execute_signing(
         note=note,
-        version=version,
+        version=note, # Current architecture returns note as dict with version
         signer_id=user["sub"],
         idempotency_key=x_idempotency_key
     )
@@ -51,37 +87,4 @@ async def seal_encounter_endpoint(
         encounter_id=encounter_id,
         signer_id=user["sub"],
         idempotency_key=x_idempotency_key
-    )
-
-@router.post("/keys/rotate")
-async def rotate_keys_endpoint(
-    public_key: str = Body(...),
-    private_key: str = Body(...),
-    user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    signing_app = SigningApplicationService(db)
-    return await signing_app.rotate_organization_key(
-        organization_id=user["org"],
-        public_key_pem=public_key,
-        private_key_pem=private_key,
-        executor_id=user["sub"]
-    )
-
-@router.post("/keys/upload")
-async def upload_keys_endpoint(
-    public_key_file: UploadFile = File(...),
-    private_key_file: UploadFile = File(...),
-    user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    public_pem = (await public_key_file.read()).decode()
-    private_pem = (await private_key_file.read()).decode()
-
-    signing_app = SigningApplicationService(db)
-    return await signing_app.rotate_organization_key(
-        organization_id=user["org"],
-        public_key_pem=public_pem,
-        private_key_pem=private_pem,
-        executor_id=user["sub"]
     )
