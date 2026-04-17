@@ -133,7 +133,7 @@ async def unlock_note(
 @router.post("/ai/stream/{encounter_id}")
 async def stream_ai(
     encounter_id: str,
-    user=Depends(get_current_user),
+    user=Depends(require_role("doctor")),
 ):
 
     async def generator():

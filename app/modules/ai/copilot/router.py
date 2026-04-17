@@ -24,7 +24,7 @@ async def analyze_note(
     note_id: str,
     payload: dict,
     user=Depends(
-        require_role("doctor", "assistant")
+        require_role("doctor")
     ),
     service=Depends(get_service),
 ):
