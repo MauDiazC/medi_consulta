@@ -38,14 +38,21 @@ class AuthService:
         # 3. Commit Atomic transaction
         await self.repo.commit()
 
-        # 4. Issue Token
+        # 4. Issue Token and Metadata
         token = create_access_token({
             "sub": str(user["id"]),
             "email": user["email"],
             "org": str(user["organization_id"]),
             "role": user["role"],
         })
-        return token
+        
+        return {
+            "access_token": token,
+            "user_id": str(user["id"]),
+            "organization_id": str(user["organization_id"]),
+            "role": user["role"],
+            "email": user["email"]
+        }
 
     async def register(self, email: str, password: str, full_name: str, role: str):
         """Institutional Registration with Argon2."""
@@ -75,7 +82,13 @@ class AuthService:
                 "role": user["role"],
             }
         )
-        return token
+        return {
+            "access_token": token,
+            "user_id": str(user["id"]),
+            "organization_id": org_id,
+            "role": user["role"],
+            "email": user["email"]
+        }
 
     async def login(self, email: str, password: str, client_info: dict = None):
         """Institutional Login with local Argon2 verification and Email Notification."""
@@ -116,7 +129,13 @@ class AuthService:
             }
         )
 
-        return token
+        return {
+            "access_token": token,
+            "user_id": str(user["id"]),
+            "organization_id": org_id,
+            "role": user["role"],
+            "email": user["email"]
+        }
 
     async def google_login(self, credential: str, client_info: dict = None):
         """
@@ -157,12 +176,20 @@ class AuthService:
 
             org_id = str(user["organization_id"]) if user["organization_id"] else None
             
-            return create_access_token({
+            token = create_access_token({
                 "sub": str(user["id"]),
                 "email": user["email"],
                 "org": org_id,
                 "role": user["role"],
             })
+
+            return {
+                "access_token": token,
+                "user_id": str(user["id"]),
+                "organization_id": org_id,
+                "role": user["role"],
+                "email": user["email"]
+            }
 
         except ValueError as e:
             raise HTTPException(

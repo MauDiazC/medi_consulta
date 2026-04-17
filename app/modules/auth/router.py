@@ -19,24 +19,22 @@ async def register_saas(payload: SaaSRegistrationRequest, s=Depends(get_service)
     Self-Service Onboarding.
     Creates an organization and its first admin user in one atomic step.
     """
-    token = await s.register_saas(
+    return await s.register_saas(
         org_name=payload.organization_name,
         email=payload.email,
         password=payload.password,
         full_name=payload.full_name
     )
-    return {"access_token": token, "token_type": "bearer"}
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(payload: RegisterRequest, s=Depends(get_service)):
     """Institutional Registration Flow."""
-    token = await s.register(
+    return await s.register(
         email=payload.email,
         password=payload.password,
         full_name=payload.full_name,
         role=payload.role
     )
-    return {"access_token": token, "token_type": "bearer"}
 
 @router.post("/login", response_model=TokenResponse)
 async def login(request: Request, payload: LoginRequest, s=Depends(get_service)):
@@ -45,8 +43,7 @@ async def login(request: Request, payload: LoginRequest, s=Depends(get_service))
         "user_agent": request.headers.get("user-agent"),
         "host": request.client.host,
     }
-    token = await s.login(payload.email, payload.password, client_info=client_info)
-    return {"access_token": token, "token_type": "bearer"}
+    return await s.login(payload.email, payload.password, client_info=client_info)
 
 @router.post("/google", response_model=TokenResponse)
 async def google_login(request: Request, payload: GoogleLoginRequest, s=Depends(get_service)):
@@ -56,8 +53,7 @@ async def google_login(request: Request, payload: GoogleLoginRequest, s=Depends(
         "host": request.client.host,
         "method": "google"
     }
-    token = await s.google_login(payload.credential, client_info=client_info)
-    return {"access_token": token, "token_type": "bearer"}
+    return await s.google_login(payload.credential, client_info=client_info)
 
 @router.post("/forgot-password")
 async def forgot_password(payload: ForgotPasswordRequest, s=Depends(get_service)):

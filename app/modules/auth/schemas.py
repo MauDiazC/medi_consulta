@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
 
 class LoginRequest(BaseModel):
@@ -31,6 +32,10 @@ class GoogleLoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    user_id: str
+    organization_id: Optional[str] = None
+    role: str
+    email: str
 
 
 class TokenExchangeRequest(BaseModel):
