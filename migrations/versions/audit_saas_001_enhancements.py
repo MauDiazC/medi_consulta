@@ -1,7 +1,7 @@
 """audit_saas_enhancements
 
 Revision ID: audit_saas_001
-Revises: signing_tables_fix_columns
+Revises: auth_reset_001
 Create Date: 2026-04-16 18:00:00.000000
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'audit_saas_001'
-down_revision = 'signing_tables_fix'
+down_revision = 'auth_reset_001'
 branch_labels = None
 depends_on = None
 
