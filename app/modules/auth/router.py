@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, status, Request, Header, HTTPException
+from fastapi import APIRouter, Depends, status, Request, Header, HTTPException, Body
+from sqlalchemy import text
 from app.core.database import get_db
 from app.core.config import settings
 from .repository import AuthRepository
@@ -16,18 +17,18 @@ def get_service(db=Depends(get_db)):
 
 @router.post("/purge-dev")
 async def purge_dev_account(
-    email: str, 
+    email: str = Body(..., embed=True), 
     x_dev_purge_key: str = Header(...),
     s=Depends(get_service)
 ):
     """
     DANGER: Emergency endpoint for development cleanup.
-    Allows purging an organization and user via HTTP.
+    Allows purging an organization and user via HTTP body.
     """
     if x_dev_purge_key != settings.SECRET_KEY:
         raise HTTPException(status_code=403, detail="Invalid Dev Key")
     
-    # Using the existing repositories via service logic (direct access for speed in dev)
+    # Using the existing repositories via service logic
     user = await s.repo.get_user_by_email(email)
     if not user:
         return {"message": "User not found, nothing to purge."}
