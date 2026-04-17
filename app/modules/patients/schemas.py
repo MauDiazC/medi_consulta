@@ -25,4 +25,4 @@ class PatientDTO(BaseModel):
     last_name: str
     email: Optional[str] = None
     organization_id: str
-    active: bool
+    is_active: bool

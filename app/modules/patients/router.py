@@ -69,3 +69,19 @@ async def deactivate_patient(
     """Soft delete: Restricted to clinical staff or admins."""
     await s.deactivate(patient_id, user["org"])
     return {"status": "deactivated"}
+
+
+@router.patch("/{patient_id}/activate")
+async def activate_patient(
+    patient_id: str,
+    user=Depends(require_role("admin", "doctor")),
+    s=Depends(get_service),
+):
+    """Re-enables a patient profile."""
+    # We need to implement activate in service/repo if not already there
+    await s.repo.db.execute(
+        text("UPDATE patients SET is_active=true WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)"),
+        {"id": patient_id, "org": user["org"]}
+    )
+    await s.repo.db.commit()
+    return {"status": "activated"}

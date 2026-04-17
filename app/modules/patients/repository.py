@@ -12,7 +12,7 @@ class PatientRepository:
                 INSERT INTO patients(
                     first_name, last_name, email, 
                     birth_date, sex,
-                    organization_id, active
+                    organization_id, is_active
                 )
                 VALUES(:f, :l, :e, :b, :s, CAST(:o AS UUID), true)
                 RETURNING *
@@ -35,7 +35,7 @@ class PatientRepository:
                 SELECT *
                 FROM patients
                 WHERE organization_id=CAST(:org AS UUID)
-                AND active=true
+                AND is_active=true
                 ORDER BY created_at DESC
                 LIMIT :limit OFFSET :offset
             """),
@@ -83,7 +83,7 @@ class PatientRepository:
         await self.db.execute(
             text("""
                 UPDATE patients
-                SET active=false
+                SET is_active=false
                 WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)
             """),
             {"id": patient_id, "org": org},
