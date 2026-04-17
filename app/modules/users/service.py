@@ -12,6 +12,7 @@ class UserService:
         return await self.repo.create(
             payload.email,
             hash_password(payload.password),
+            payload.full_name,
             payload.role,
             payload.organization_id,
         )

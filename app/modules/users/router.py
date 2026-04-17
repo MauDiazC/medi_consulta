@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -17,7 +17,18 @@ def get_service(db=Depends(get_db)):
 
 
 @router.post("")
-async def create_user(payload: UserCreate, s=Depends(get_service)):
+async def create_user(
+    payload: UserCreate, 
+    user=Depends(require_role("admin")),
+    s=Depends(get_service)
+):
+    """
+    Creates a new user. 
+    SaaS Guard: Only admins can create users, and they must be in their org.
+    """
+    if str(payload.organization_id) != str(user["org"]):
+        raise HTTPException(status_code=403, detail="Cannot create user for another organization")
+        
     return await s.create(payload)
 
 
