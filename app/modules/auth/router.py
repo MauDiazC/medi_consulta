@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status, Request, Header, HTTPException, 
 from sqlalchemy import text
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.security import hash_password
 from .repository import AuthRepository
 from .schemas import (
     LoginRequest, TokenResponse, RegisterRequest, 
@@ -14,6 +15,40 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 def get_service(db=Depends(get_db)):
     return AuthService(AuthRepository(db))
+
+@router.post("/bootstrap-system")
+async def bootstrap_system(
+    x_dev_purge_key: str = Header(...),
+    s=Depends(get_service)
+):
+    """
+    Emergency: Initializes the system with a Global Organization and Super Admin.
+    Credentials: mdiazcabr@gmail.com / master01
+    """
+    if x_dev_purge_key != settings.SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid Dev Key")
+
+    # 1. Create/Get Global Organization
+    r = await s.repo.db.execute(text("SELECT id FROM organizations WHERE name = 'Mediconsulta Global'"))
+    org = r.mappings().first()
+    if not org:
+        org = await s.repo.create_organization("Mediconsulta Global")
+
+    # 2. Create Super Admin
+    email = "mdiazcabr@gmail.com"
+    existing = await s.repo.get_user_by_email(email)
+    if not existing:
+        hashed = hash_password("master01")
+        await s.repo.create_user(
+            email=email,
+            full_name="Super Admin",
+            password_hash=hashed,
+            role="admin",
+            organization_id=org["id"]
+        )
+
+    await s.repo.commit()
+    return {"message": "System bootstrapped successfully. Admin: mdiazcabr@gmail.com"}
 
 @router.post("/purge-dev")
 async def purge_dev_account(
