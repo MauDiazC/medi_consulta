@@ -70,3 +70,15 @@ class ClinicalSessionRepository:
             {"id": session_id, "org_id": org_id}
         )
         await self._db.commit()
+
+    async def activate(self, session_id: str, org_id: str):
+        """Re-open/activate a clinical session."""
+        await self._db.execute(
+            text("""
+                UPDATE clinical_sessions
+                SET is_active = true
+                WHERE id = CAST(:id AS UUID) AND organization_id = CAST(:org_id AS UUID)
+            """),
+            {"id": session_id, "org_id": org_id}
+        )
+        await self._db.commit()

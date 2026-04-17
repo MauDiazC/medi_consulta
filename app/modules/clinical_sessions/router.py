@@ -59,3 +59,13 @@ async def deactivate_session(
 ):
     """Close/deactivate a clinical session."""
     return await service.deactivate(session_id, user["org"])
+
+
+@router.patch("/{session_id}/activate")
+async def activate_session(
+    session_id: str,
+    user=Depends(get_current_user),
+    service=Depends(get_service),
+):
+    """Re-open/activate a clinical session."""
+    return await service.activate(session_id, user["org"])

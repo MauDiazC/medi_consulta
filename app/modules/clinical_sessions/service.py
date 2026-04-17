@@ -24,3 +24,7 @@ class ClinicalSessionService:
     async def deactivate(self, session_id, org_id):
         await self._repo.deactivate(session_id, org_id)
         return {"status": "deactivated"}
+
+    async def activate(self, session_id, org_id):
+        await self._repo.activate(session_id, org_id)
+        return {"status": "activated"}
