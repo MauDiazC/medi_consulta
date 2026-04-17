@@ -28,7 +28,7 @@ class UserRepository:
                 SELECT *
                 FROM users
                 WHERE organization_id=CAST(:org AS UUID)
-                AND active=true
+                ORDER BY created_at DESC
                 LIMIT :limit OFFSET :offset
             """),
             {"org": org, "limit": limit, "offset": offset},
