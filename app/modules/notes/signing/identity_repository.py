@@ -36,7 +36,7 @@ class ProfessionalIdentityRepository:
         await self.db.commit()
 
     async def get_by_user(self, user_id: str, org_id: str):
-        """Fetch identity validating organization."""
+        """Fetch identity validating organization (returns even if inactive to see status)."""
         r = await self.db.execute(
             text("""
                 SELECT * FROM professional_identities 
@@ -46,6 +46,21 @@ class ProfessionalIdentityRepository:
             {"uid": user_id, "oid": org_id}
         )
         return r.mappings().first()
+
+    async def list_by_org(self, org_id: str, limit: int = 20, offset: int = 0):
+        """Lists all professional identities in the organization."""
+        r = await self.db.execute(
+            text("""
+                SELECT pi.*, u.email, u.full_name 
+                FROM professional_identities pi
+                JOIN users u ON pi.user_id = u.id
+                WHERE pi.organization_id = CAST(:oid AS UUID)
+                ORDER BY pi.created_at DESC
+                LIMIT :limit OFFSET :offset
+            """),
+            {"oid": org_id, "limit": limit, "offset": offset}
+        )
+        return r.mappings().all()
 
     async def deactivate(self, user_id: str, org_id: str):
         """Disables the professional identity."""

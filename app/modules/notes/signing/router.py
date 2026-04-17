@@ -5,6 +5,7 @@ from typing import Optional
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.permissions import require_role
+from app.core.pagination import pagination_params
 from app.modules.notes.signing.service import SigningApplicationService
 from app.modules.notes.repository import ClinicalNoteRepository
 from app.modules.notes.signing.models import NoteSnapshot
@@ -56,6 +57,16 @@ async def upload_professional_identity(
         specialty=specialty
     )
     return {"message": "Professional identity file successfully registered."}
+
+@router.get("/professional-identity")
+async def list_identities(
+    page=Depends(pagination_params),
+    user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin only: List all professional identities in the organization."""
+    repo = ProfessionalIdentityRepository(db)
+    return await repo.list_by_org(user["org"], page.limit, page.offset)
 
 @router.get("/professional-identity/me")
 async def get_my_identity(
