@@ -54,16 +54,15 @@ async def list_available_models(
 
     try:
         client = genai.Client(api_key=api_key)
+        # We only take the name to avoid attribute versioning issues
         models = client.models.list()
         return {
             "api_key_fragment": f"{api_key[:5]}...",
-            "models": [
-                {"name": m.name, "methods": m.supported_methods} 
-                for m in models
-            ]
+            "models": [m.name for m in models]
         }
     except Exception as e:
-        return {"error": str(e)}
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc()}
 
 
 @router.get("/{note_id}")
