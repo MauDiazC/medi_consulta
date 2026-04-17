@@ -10,13 +10,21 @@ class PatientRepository:
         r = await self.db.execute(
             text("""
                 INSERT INTO patients(
-                    first_name,last_name,
-                    organization_id,active
+                    first_name, last_name, email, 
+                    birth_date, sex,
+                    organization_id, active
                 )
-                VALUES(:f,:l,CAST(:o AS UUID),true)
+                VALUES(:f, :l, :e, :b, :s, CAST(:o AS UUID), true)
                 RETURNING *
             """),
-            {"f": payload.first_name, "l": payload.last_name, "o": org},
+            {
+                "f": payload.first_name, 
+                "l": payload.last_name, 
+                "e": payload.email,
+                "b": payload.birth_date,
+                "s": payload.sex,
+                "o": org
+            },
         )
         await self.db.commit()
         return r.mappings().first()
@@ -51,7 +59,10 @@ class PatientRepository:
             text("""
                 UPDATE patients
                 SET first_name = COALESCE(:f, first_name),
-                    last_name  = COALESCE(:l, last_name)
+                    last_name  = COALESCE(:l, last_name),
+                    email      = COALESCE(:e, email),
+                    birth_date = COALESCE(:b, birth_date),
+                    sex        = COALESCE(:s, sex)
                 WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)
                 RETURNING *
             """),
@@ -60,6 +71,9 @@ class PatientRepository:
                 "org": org,
                 "f": payload.first_name,
                 "l": payload.last_name,
+                "e": payload.email,
+                "b": payload.birth_date,
+                "s": payload.sex
             },
         )
         await self.db.commit()
