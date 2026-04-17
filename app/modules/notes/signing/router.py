@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, File, UploadFile, Header, HTTPException, Body
+from fastapi import APIRouter, Depends, File, UploadFile, Header, HTTPException, Body, Form
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -30,6 +31,30 @@ async def setup_professional_identity(
         specialty=payload.specialty
     )
     return {"message": "Professional identity successfully registered."}
+
+@router.post("/professional-identity/upload")
+async def upload_professional_identity(
+    license_number: str = Form(...),
+    specialty: Optional[str] = Form(None),
+    public_key_file: UploadFile = File(...),
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Physician Onboarding via File Upload.
+    Allows uploading the .pem public key directly.
+    """
+    public_pem = (await public_key_file.read()).decode()
+    
+    repo = ProfessionalIdentityRepository(db)
+    await repo.register(
+        user_id=user["sub"],
+        org_id=user["org"],
+        public_key_pem=public_pem,
+        license_number=license_number,
+        specialty=specialty
+    )
+    return {"message": "Professional identity file successfully registered."}
 
 @router.get("/professional-identity/me")
 async def get_my_identity(
