@@ -11,6 +11,7 @@ from app.core.telemetry import setup_telemetry
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.modules.auth.router import router as auth_router
+from app.modules.ai.copilot.router import router as copilot_router
 from app.modules.clinical_sessions.router import \
     router as clinical_sessions_router
 from app.modules.dictation.websocket import router as dictation_ws
@@ -98,6 +99,7 @@ def create_app() -> FastAPI:
     app.include_router(encounters_router)
     app.include_router(notes_router)
     app.include_router(auth_router)
+    app.include_router(copilot_router)
     app.include_router(workspace_router)
     app.include_router(dictation_ws)
     app.include_router(dictation_router)
