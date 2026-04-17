@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'audit_saas_001'
-down_revision = 'signing_tables_fix_columns'
+down_revision = 'signing_tables_fix'
 branch_labels = None
 depends_on = None
 
