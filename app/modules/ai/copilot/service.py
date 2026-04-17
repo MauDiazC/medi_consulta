@@ -14,7 +14,7 @@ class CopilotService:
         draft,
     ):
 
-        suggestions = self.analyzer.analyze(draft)
+        suggestions = await self.analyzer.analyze(draft)
 
         if suggestions:
             await self.repo.save(
