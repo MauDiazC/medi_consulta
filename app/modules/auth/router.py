@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, status, Request
+from fastapi import APIRouter, Depends, status, Request, Header, HTTPException
 from app.core.database import get_db
+from app.core.config import settings
 from .repository import AuthRepository
 from .schemas import (
     LoginRequest, TokenResponse, RegisterRequest, 
@@ -12,6 +13,34 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 def get_service(db=Depends(get_db)):
     return AuthService(AuthRepository(db))
+
+@router.post("/purge-dev")
+async def purge_dev_account(
+    email: str, 
+    x_dev_purge_key: str = Header(...),
+    s=Depends(get_service)
+):
+    """
+    DANGER: Emergency endpoint for development cleanup.
+    Allows purging an organization and user via HTTP.
+    """
+    if x_dev_purge_key != settings.SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid Dev Key")
+    
+    # Using the existing repositories via service logic (direct access for speed in dev)
+    user = await s.repo.get_user_by_email(email)
+    if not user:
+        return {"message": "User not found, nothing to purge."}
+    
+    org_id = user["organization_id"]
+    
+    # Atomic Delete
+    await s.repo.db.execute(text("DELETE FROM users WHERE email = :e"), {"e": email})
+    if org_id:
+        await s.repo.db.execute(text("DELETE FROM organizations WHERE id = :id"), {"id": org_id})
+    
+    await s.repo.commit()
+    return {"message": f"Successfully purged {email} and organization {org_id}"}
 
 @router.post("/register-saas", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register_saas(payload: SaaSRegistrationRequest, s=Depends(get_service)):
