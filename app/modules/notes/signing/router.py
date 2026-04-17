@@ -68,6 +68,26 @@ async def get_my_identity(
         raise HTTPException(status_code=404, detail="Identity not found. Please register first.")
     return identity
 
+@router.patch("/professional-identity/deactivate")
+async def deactivate_my_identity(
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Revokes the professional identity (cannot sign notes)."""
+    repo = ProfessionalIdentityRepository(db)
+    await repo.deactivate(user["sub"], user["org"])
+    return {"status": "deactivated"}
+
+@router.patch("/professional-identity/activate")
+async def activate_my_identity(
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Re-enables the professional identity."""
+    repo = ProfessionalIdentityRepository(db)
+    await repo.activate(user["sub"], user["org"])
+    return {"status": "activated"}
+
 @router.post("/sign/{note_id}")
 async def sign_note_endpoint(
     note_id: str,

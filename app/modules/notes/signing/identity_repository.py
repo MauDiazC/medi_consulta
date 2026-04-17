@@ -22,6 +22,7 @@ class ProfessionalIdentityRepository:
                     public_key_pem = EXCLUDED.public_key_pem,
                     license_number = EXCLUDED.license_number,
                     specialty = EXCLUDED.specialty,
+                    is_active = true,
                     updated_at = NOW()
             """),
             {
@@ -41,8 +42,31 @@ class ProfessionalIdentityRepository:
                 SELECT * FROM professional_identities 
                 WHERE user_id = CAST(:uid AS UUID) 
                 AND organization_id = CAST(:oid AS UUID)
-                AND is_active = true
             """),
             {"uid": user_id, "oid": org_id}
         )
         return r.mappings().first()
+
+    async def deactivate(self, user_id: str, org_id: str):
+        """Disables the professional identity."""
+        await self.db.execute(
+            text("""
+                UPDATE professional_identities 
+                SET is_active = false, updated_at = NOW()
+                WHERE user_id = CAST(:uid AS UUID) AND organization_id = CAST(:oid AS UUID)
+            """),
+            {"uid": user_id, "oid": org_id}
+        )
+        await self.db.commit()
+
+    async def activate(self, user_id: str, org_id: str):
+        """Re-enables the professional identity."""
+        await self.db.execute(
+            text("""
+                UPDATE professional_identities 
+                SET is_active = true, updated_at = NOW()
+                WHERE user_id = CAST(:uid AS UUID) AND organization_id = CAST(:oid AS UUID)
+            """),
+            {"uid": user_id, "oid": org_id}
+        )
+        await self.db.commit()
