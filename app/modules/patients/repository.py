@@ -35,7 +35,6 @@ class PatientRepository:
                 SELECT *
                 FROM patients
                 WHERE organization_id=CAST(:org AS UUID)
-                AND is_active=true
                 ORDER BY created_at DESC
                 LIMIT :limit OFFSET :offset
             """),
