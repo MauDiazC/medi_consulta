@@ -5,6 +5,13 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+class SaaSRegistrationRequest(BaseModel):
+    """Schema for self-service SaaS onboarding."""
+    organization_name: str
+    email: EmailStr
+    password: str
+    full_name: str
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str

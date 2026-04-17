@@ -13,6 +13,40 @@ class AuthService:
     def __init__(self, repo: AuthRepository):
         self.repo = repo
 
+    async def register_saas(self, org_name: str, email: str, password: str, full_name: str):
+        """Atomic Onboarding: Creates organization and admin user in one transaction."""
+        existing = await self.repo.get_user_by_email(email)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User already exists",
+            )
+
+        # 1. Create Organization
+        org = await self.repo.create_organization(org_name)
+        
+        # 2. Create Admin User linked to that Org
+        password_hash = hash_password(password)
+        user = await self.repo.create_user(
+            email=email,
+            full_name=full_name,
+            password_hash=password_hash,
+            role="admin",
+            organization_id=org["id"]
+        )
+        
+        # 3. Commit Atomic transaction
+        await self.repo.commit()
+
+        # 4. Issue Token
+        token = create_access_token({
+            "sub": str(user["id"]),
+            "email": user["email"],
+            "org": str(user["organization_id"]),
+            "role": user["role"],
+        })
+        return token
+
     async def register(self, email: str, password: str, full_name: str, role: str):
         """Institutional Registration with Argon2."""
         existing = await self.repo.get_user_by_email(email)

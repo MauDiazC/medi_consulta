@@ -44,17 +44,35 @@ class AuthRepository:
 
         return result.mappings().first()
 
-    async def create_user(self, email: str, full_name: str, password_hash: str, role: str):
+    async def create_user(self, email: str, full_name: str, password_hash: str, role: str, organization_id: str = None):
         """
         Institutional Provisioning for new users.
         """
         r = await self.db.execute(
             text("""
                 INSERT INTO users(email, full_name, password_hash, role, organization_id, active)
-                VALUES(:email, :name, :hash, :role, NULL, true)
+                VALUES(:email, :name, :hash, :role, :org_id, true)
                 RETURNING id, email, role, organization_id
             """),
-            {"email": email, "name": full_name, "hash": password_hash, "role": role}
+            {
+                "email": email, 
+                "name": full_name, 
+                "hash": password_hash, 
+                "role": role,
+                "org_id": organization_id
+            }
+        )
+        return r.mappings().first()
+
+    async def create_organization(self, name: str):
+        """Creates a new organization during onboarding."""
+        r = await self.db.execute(
+            text("""
+                INSERT INTO organizations(name, active)
+                VALUES(:name, true)
+                RETURNING id, name
+            """),
+            {"name": name}
         )
         return r.mappings().first()
 

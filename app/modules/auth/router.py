@@ -1,13 +1,31 @@
 from fastapi import APIRouter, Depends, status, Request
 from app.core.database import get_db
 from .repository import AuthRepository
-from .schemas import LoginRequest, TokenResponse, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest, GoogleLoginRequest
+from .schemas import (
+    LoginRequest, TokenResponse, RegisterRequest, 
+    ForgotPasswordRequest, ResetPasswordRequest, 
+    GoogleLoginRequest, SaaSRegistrationRequest
+)
 from .service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 def get_service(db=Depends(get_db)):
     return AuthService(AuthRepository(db))
+
+@router.post("/register-saas", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register_saas(payload: SaaSRegistrationRequest, s=Depends(get_service)):
+    """
+    Self-Service Onboarding.
+    Creates an organization and its first admin user in one atomic step.
+    """
+    token = await s.register_saas(
+        org_name=payload.organization_name,
+        email=payload.email,
+        password=payload.password,
+        full_name=payload.full_name
+    )
+    return {"access_token": token, "token_type": "bearer"}
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(payload: RegisterRequest, s=Depends(get_service)):
