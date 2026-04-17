@@ -110,6 +110,28 @@ def purge_onboarding(email: str):
         raise typer.Exit(code=1)
 
 @app.command()
+def list_ai_models():
+    """Lists available Gemini models for the configured API Key."""
+    from google import genai
+    from app.core.config import settings
+    
+    api_key = settings.get("GOOGLE_AI_API_KEY")
+    if not api_key:
+        print("[red]✘ GOOGLE_AI_API_KEY not found in settings.[/red]")
+        return
+
+    client = genai.Client(api_key=api_key)
+    print(f"[blue]Fetching models for key: {api_key[:10]}...[/blue]")
+    
+    try:
+        models = client.models.list()
+        print("\n[bold]Available Models:[/bold]")
+        for m in models:
+            print(f"- [green]{m.name}[/green] (Supported: {m.supported_methods})")
+    except Exception as e:
+        print(f"[red]Error listing models: {str(e)}[/red]")
+
+@app.command()
 def version() -> None:
     """Show application version."""
     print(f"[bold]Mediconsulta v{settings.VERSION}[/bold]")
