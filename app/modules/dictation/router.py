@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Body
 from app.core.dependencies import get_current_user
+from app.core.permissions import require_role
 from .soap_classifier import SOAPClassifier
 
 router = APIRouter(prefix="/dictation", tags=["dictation"])
@@ -7,7 +8,7 @@ router = APIRouter(prefix="/dictation", tags=["dictation"])
 @router.post("/classify")
 async def classify_dictation(
     payload: dict = Body(...),
-    user=Depends(get_current_user)
+    user=Depends(require_role("doctor"))
 ):
     """
     Toma un texto libre (dictado) y lo organiza en secciones SOAP usando IA (Google Gemini).
