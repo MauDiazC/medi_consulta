@@ -66,5 +66,21 @@ async def deactivate_user(
     user=Depends(require_role("admin")),
     s=Depends(get_service),
 ):
-    await s.deactivate(user_id, user["org"])
-    return {"status": "deactivated"}
+    """Soft delete: Marks the user as inactive."""
+    return await s.deactivate(user_id, user["org"])
+
+
+@router.delete("/{user_id}/purge")
+async def hard_delete_user(
+    user_id: str,
+    user=Depends(require_role("admin")),
+    s=Depends(get_service),
+):
+    """
+    DANGER: Physical deletion of a user.
+    TEMPORARY: Only for development testing.
+    """
+    # Use the email from the user record to call repo purge
+    target_user = await s.get(user_id, user["org"])
+    await s.repo.hard_delete_by_email(target_user["email"])
+    return {"status": "purged", "email": target_user["email"]}

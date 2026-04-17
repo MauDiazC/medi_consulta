@@ -1,4 +1,4 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 from app.core.security import hash_password
 
@@ -9,6 +9,14 @@ class UserService:
         self.repo = repo
 
     async def create(self, payload):
+        # 1. Check if email already exists
+        existing = await self.repo.get_by_email(payload.email)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"El correo {payload.email} ya está registrado."
+            )
+
         return await self.repo.create(
             payload.email,
             hash_password(payload.password),
@@ -34,3 +42,4 @@ class UserService:
 
     async def deactivate(self, user_id, org):
         await self.repo.deactivate(user_id, org)
+        return {"status": "deactivated"}
