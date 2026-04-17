@@ -12,7 +12,7 @@ healthcheckPath = "/health"
 restartPolicy = "ON_FAILURE"
 # Professional migration safety: Run BEFORE deployment
 preDeployCommand = "alembic upgrade head"
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 
 # Service 2: Background Task Processor (ARQ)
 [services.worker]
