@@ -39,3 +39,7 @@ class OrganizationService:
     async def deactivate(self, org_id):
         async with self.repo.db.begin():
             await self.repo.deactivate(org_id)
+
+    async def activate(self, org_id):
+        async with self.repo.db.begin():
+            await self.repo.activate(org_id)

@@ -24,7 +24,7 @@ class OrganizationRepository:
             text("""
                 SELECT *
                 FROM organizations
-                WHERE active=true
+                ORDER BY created_at DESC
                 LIMIT :limit OFFSET :offset
             """),
             {"limit": limit, "offset": offset},
@@ -36,7 +36,7 @@ class OrganizationRepository:
             text("""
                 SELECT *
                 FROM organizations
-                WHERE id=:id
+                WHERE id = CAST(:id AS UUID)
             """),
             {"id": org_id},
         )
@@ -47,7 +47,7 @@ class OrganizationRepository:
             text("""
                 UPDATE organizations
                 SET name = COALESCE(:name, name)
-                WHERE id=:id
+                WHERE id = CAST(:id AS UUID)
                 RETURNING *
             """),
             {"id": org_id, "name": payload.name},
@@ -60,7 +60,19 @@ class OrganizationRepository:
             text("""
                 UPDATE organizations
                 SET active=false
-                WHERE id=:id
+                WHERE id = CAST(:id AS UUID)
+            """),
+            {"id": org_id},
+        )
+        # Commit removed for service orchestration
+
+    async def activate(self, org_id: str):
+        """Re-enables an organization."""
+        await self.db.execute(
+            text("""
+                UPDATE organizations
+                SET active=true
+                WHERE id = CAST(:id AS UUID)
             """),
             {"id": org_id},
         )
@@ -69,7 +81,7 @@ class OrganizationRepository:
     async def hard_delete(self, org_id: str):
         """DANGER: Physical deletion. Use only for dev/testing."""
         await self.db.execute(
-            text("DELETE FROM organizations WHERE id = :id"),
+            text("DELETE FROM organizations WHERE id = CAST(:id AS UUID)"),
             {"id": org_id}
         )
         await self.db.commit()
