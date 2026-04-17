@@ -20,10 +20,10 @@ class EncounterRepository:
                     status
                 )
                 VALUES(
-                    :session,
-                    :patient,
-                    :org,
-                    :doctor,
+                    CAST(:session AS UUID),
+                    CAST(:patient AS UUID),
+                    CAST(:org AS UUID),
+                    CAST(:doctor AS UUID),
                     :reason,
                     'open'
                 )
@@ -44,10 +44,14 @@ class EncounterRepository:
     async def get(self, encounter_id, org):
         r = await self.db.execute(
             text("""
-                SELECT *
-                FROM encounters
-                WHERE id=:id
-                AND organization_id=:org
+                SELECT e.*, 
+                       p.first_name || ' ' || p.last_name as patient_name,
+                       u.full_name as doctor_name
+                FROM encounters e
+                JOIN patients p ON e.patient_id = p.id
+                JOIN users u ON e.doctor_id = u.id
+                WHERE e.id = CAST(:id AS UUID)
+                AND e.organization_id = CAST(:org AS UUID)
             """),
             {"id": encounter_id, "org": org},
         )
@@ -56,10 +60,14 @@ class EncounterRepository:
     async def list(self, org, limit, offset):
         r = await self.db.execute(
             text("""
-                SELECT *
-                FROM encounters
-                WHERE organization_id=:org
-                ORDER BY created_at DESC
+                SELECT e.*, 
+                       p.first_name || ' ' || p.last_name as patient_name,
+                       u.full_name as doctor_name
+                FROM encounters e
+                JOIN patients p ON e.patient_id = p.id
+                JOIN users u ON e.doctor_id = u.id
+                WHERE e.organization_id = CAST(:org AS UUID)
+                ORDER BY e.created_at DESC
                 LIMIT :limit OFFSET :offset
             """),
             {"org": org, "limit": limit, "offset": offset},
@@ -69,11 +77,15 @@ class EncounterRepository:
     async def list_by_patient(self, patient_id, org, limit, offset):
         r = await self.db.execute(
             text("""
-                SELECT *
-                FROM encounters
-                WHERE patient_id=:patient
-                AND organization_id=:org
-                ORDER BY created_at DESC
+                SELECT e.*, 
+                       p.first_name || ' ' || p.last_name as patient_name,
+                       u.full_name as doctor_name
+                FROM encounters e
+                JOIN patients p ON e.patient_id = p.id
+                JOIN users u ON e.doctor_id = u.id
+                WHERE e.patient_id = CAST(:patient AS UUID)
+                AND e.organization_id = CAST(:org AS UUID)
+                ORDER BY e.created_at DESC
                 LIMIT :limit OFFSET :offset
             """),
             {
@@ -88,11 +100,15 @@ class EncounterRepository:
     async def list_by_doctor(self, doctor_id, org, limit, offset):
         r = await self.db.execute(
             text("""
-                SELECT *
-                FROM encounters
-                WHERE doctor_id=:doctor
-                AND organization_id=:org
-                ORDER BY created_at DESC
+                SELECT e.*, 
+                       p.first_name || ' ' || p.last_name as patient_name,
+                       u.full_name as doctor_name
+                FROM encounters e
+                JOIN patients p ON e.patient_id = p.id
+                JOIN users u ON e.doctor_id = u.id
+                WHERE e.doctor_id = CAST(:doctor AS UUID)
+                AND e.organization_id = CAST(:org AS UUID)
+                ORDER BY e.created_at DESC
                 LIMIT :limit OFFSET :offset
             """),
             {
@@ -107,11 +123,15 @@ class EncounterRepository:
     async def list_by_session(self, session_id, org, limit, offset):
         r = await self.db.execute(
             text("""
-                SELECT *
-                FROM encounters
-                WHERE clinical_session_id=:session
-                AND organization_id=:org
-                ORDER BY created_at DESC
+                SELECT e.*, 
+                       p.first_name || ' ' || p.last_name as patient_name,
+                       u.full_name as doctor_name
+                FROM encounters e
+                JOIN patients p ON e.patient_id = p.id
+                JOIN users u ON e.doctor_id = u.id
+                WHERE e.clinical_session_id = CAST(:session AS UUID)
+                AND e.organization_id = CAST(:org AS UUID)
+                ORDER BY e.created_at DESC
                 LIMIT :limit OFFSET :offset
             """),
             {
@@ -128,7 +148,7 @@ class EncounterRepository:
             text("""
                 UPDATE encounters
                 SET reason = COALESCE(:reason, reason)
-                WHERE id=:id AND organization_id=:org
+                WHERE id = CAST(:id AS UUID) AND organization_id = CAST(:org AS UUID)
                 RETURNING *
             """),
             {
@@ -145,7 +165,7 @@ class EncounterRepository:
             text("""
                 UPDATE encounters
                 SET status='closed'
-                WHERE id=:id AND organization_id=:org
+                WHERE id = CAST(:id AS UUID) AND organization_id = CAST(:org AS UUID)
             """),
             {"id": encounter_id, "org": org},
         )
