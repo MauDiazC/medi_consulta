@@ -72,6 +72,7 @@ async def autosave_note(
     return await service.autosave(
         encounter_id,
         user["sub"],
+        user["org"],
         payload,
         if_unmodified_since,
     )
@@ -86,6 +87,7 @@ async def finalize_version(
     return await service.finalize_version(
         encounter_id,
         user["sub"],
+        user["org"],
     )
 
 
@@ -101,6 +103,7 @@ async def sign_note(
     return await service.sign(
         note_id,
         user["sub"],
+        user["org"],
         private_pem
     )
 
