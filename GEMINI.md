@@ -121,3 +121,31 @@ Communication between modules must happen through services, events, or explicit 
 - Explicit dependency injection.
 - Small services, deterministic behavior, predictable side effects.
 - Clarity over cleverness. No magic abstractions or hidden globals.
+
+---
+
+# SESSION LOG & PROJECT STATUS (2026-04-17)
+
+## ✅ AVANCES REALIZADOS
+1.  **Clinical Safety Watcher (AI):** Upgrade del `CopilotAnalyzer` usando Gemini para detectar Red Flags y Omisiones Críticas sin interferir en el diagnóstico médico.
+2.  **SaaS Deep Audit Trail:** Implementación de auditoría de acceso en segundo plano que rastrea IP, User-Agent y `organization_id` de forma inmutable.
+3.  **Atomic Onboarding:** Nuevo endpoint `POST /auth/register-saas` que crea Organización + Admin en un solo paso atómico.
+4.  **Multi-tenancy Hardening:** Blindaje total de los repositorios de `notes`, `patients` y `organizations` con validación estricta de `organization_id` y casting de UUID para PostgreSQL.
+5.  **Enriched Auth Response:** Login y Registro ahora devuelven metadatos completos (`user_id`, `org_id`, `role`, `email`) para facilitar el Frontend.
+6.  **SaaS Lifecycle (CRUD):** Implementación completa de flujos de Activación/Desactivación para Usuarios, Pacientes y Organizaciones.
+7.  **DevOps & Infra:** 
+    *   Sincronización de puerto dinámico ($PORT) en Dockerfile y `railway.toml` (Fix Error 502).
+    *   Unificación de cabezas de Alembic y corrección de migraciones.
+    *   Herramientas de desarrollo: Comando CLI y Endpoint de purga (`purge-dev`).
+8.  **Seguridad Clínica:** Restricción de endpoints de IA exclusivamente al rol de `doctor`.
+
+## 🛠 ESTADO ACTUAL
+- **Railway:** Desplegado y Operacional.
+- **Base de Datos:** Migrada y saneada (unificada a `is_active`).
+- **Endpoints Verificados:** Health, Auth, Organizations, Users, Patients.
+
+## 🚀 PUNTO DE PARTIDA PARA MAÑANA
+- Iniciar con el registro del primer **Encounter** (Encuentro Clínico).
+- Probar el flujo de escritura de notas con **Autosave** y **Locking**.
+- Verificar la **Firma Digital** y el **Backup Inmutable**.
+- Explorar el módulo de **Appointments** (Citas).
