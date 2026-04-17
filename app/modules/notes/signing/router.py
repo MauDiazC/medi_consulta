@@ -4,6 +4,7 @@ from typing import Optional
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.permissions import require_role
 from app.modules.notes.signing.service import SigningApplicationService
 from app.modules.notes.repository import ClinicalNoteRepository
 from app.modules.notes.signing.models import NoteSnapshot
@@ -68,25 +69,52 @@ async def get_my_identity(
         raise HTTPException(status_code=404, detail="Identity not found. Please register first.")
     return identity
 
-@router.patch("/professional-identity/deactivate")
+# --- Administrative Identity Management ---
+
+@router.patch("/professional-identity/{user_id}/deactivate")
+async def deactivate_user_identity(
+    user_id: str,
+    user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin only: Revokes the professional identity of a specific user in the org."""
+    repo = ProfessionalIdentityRepository(db)
+    await repo.deactivate(user_id, user["org"])
+    return {"status": "deactivated", "user_id": user_id}
+
+@router.patch("/professional-identity/{user_id}/activate")
+async def activate_user_identity(
+    user_id: str,
+    user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin only: Re-enables the professional identity of a specific user in the org."""
+    repo = ProfessionalIdentityRepository(db)
+    await repo.activate(user_id, user["org"])
+    return {"status": "activated", "user_id": user_id}
+
+# --- Personal Identity Management ---
+
+@router.patch("/professional-identity/me/deactivate")
 async def deactivate_my_identity(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Revokes the professional identity (cannot sign notes)."""
+    """User only: Revokes their own identity (Emergency)."""
     repo = ProfessionalIdentityRepository(db)
     await repo.deactivate(user["sub"], user["org"])
     return {"status": "deactivated"}
 
-@router.patch("/professional-identity/activate")
+@router.patch("/professional-identity/me/activate")
 async def activate_my_identity(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Re-enables the professional identity."""
+    """User only: Re-enables their own identity."""
     repo = ProfessionalIdentityRepository(db)
     await repo.activate(user["sub"], user["org"])
     return {"status": "activated"}
+
 
 @router.post("/sign/{note_id}")
 async def sign_note_endpoint(
