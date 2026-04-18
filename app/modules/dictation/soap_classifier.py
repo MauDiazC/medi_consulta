@@ -8,8 +8,8 @@ logger = logging.getLogger("dictation.soap")
 
 class SOAPClassifier:
     """
-    Clinical Intelligence Layer using Google Gemini (New SDK).
-    Classifies and cleans medical dictation into SOAP sections.
+    Expert Clinical Intelligence Layer.
+    Extracts and organizes medical dictation into a full SOAP structure.
     """
     
     def __init__(self):
@@ -20,31 +20,39 @@ class SOAPClassifier:
 
     async def classify(self, text: str):
         """
-        Organizes clinical text into structured SOAP format.
+        Processes free-text dictation and maps it to the 4 SOAP pillars.
+        Cleans speech artifacts (ums, ehs) and uses professional terminology.
         """
         if not self.client:
-            return {"section": "Subjective", "content": text}
+            return {
+                "subjective": text,
+                "objective": "",
+                "assessment": "",
+                "plan": ""
+            }
 
         prompt = f"""
-        Eres un asistente de documentación clínica experto.
-        Tu tarea es clasificar la siguiente oración médica en UNA de las 4 secciones SOAP:
-        - Subjective (Lo que el paciente reporta)
-        - Objective (Signos físicos, laboratorio, hallazgos)
-        - Assessment (Diagnóstico, impresión clínica)
-        - Plan (Tratamiento, medicamentos, seguimiento)
+        Actúa como un transcriptor médico experto. Tu objetivo es procesar un dictado de voz y organizarlo en una estructura SOAP completa.
 
-        Responde ÚNICAMENTE en formato JSON plano:
-        {{
-         "section": "Subjective | Objective | Assessment | Plan",
-         "content": "Redacción clínica limpia y corregida"
-        }}
+        REGLAS:
+        1. Filtra muletillas ("eh", "este", "bueno") y ruidos del habla.
+        2. Transforma el lenguaje coloquial a lenguaje clínico profesional (ej: "le duelen las anginas" -> "odinofagia / amigdalitis").
+        3. Si una sección no tiene información, devuélvela como una cadena vacía "".
+        4. No inventes información que no esté en el texto.
 
-        Oración:
-        {text}
+        ESTRUCTURA DE SALIDA (JSON):
+        - subjective: Motivo de consulta y síntomas referidos por el paciente.
+        - objective: Hallazgos físicos, signos vitales o laboratorios mencionados.
+        - assessment: Impresión diagnóstica o análisis del médico.
+        - plan: Medicamentos, dosis, estudios solicitados y seguimiento.
+
+        TEXTO A PROCESAR:
+        "{text}"
+
+        Responde ÚNICAMENTE con el objeto JSON plano.
         """
 
         try:
-            # Execute Gemini chat with new SDK using 2.5 model
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
                 model='gemini-2.5-flash',
@@ -58,6 +66,10 @@ class SOAPClassifier:
             return json.loads(response.text)
             
         except Exception as e:
-            logger.error(f"Gemini Classification Error: {str(e)}")
-            # Fallback safe
-            return {"section": "Subjective", "content": text}
+            logger.error(f"Gemini Full SOAP Extraction Error: {str(e)}")
+            return {
+                "subjective": text,
+                "objective": "",
+                "assessment": "",
+                "plan": ""
+            }
