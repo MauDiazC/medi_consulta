@@ -19,7 +19,7 @@ class CopilotRepository:
                     content
                 )
                 VALUES(
-                    :note_id,
+                    CAST(:note_id AS UUID),
                     :session_id,
                     :type,
                     :content
@@ -32,6 +32,7 @@ class CopilotRepository:
                     "content": s["content"],
                 },
             )
+        await self.db.commit()
 
     async def latest(self, note_id):
 
@@ -39,7 +40,7 @@ class CopilotRepository:
             text("""
             SELECT *
             FROM ai_copilot_suggestions
-            WHERE note_id=:nid
+            WHERE note_id = CAST(:nid AS UUID)
             ORDER BY created_at DESC
             LIMIT 10
             """),
