@@ -1,7 +1,7 @@
 """create ai copilot suggestions table
 
 Revision ID: ai_copilot_001_add_tables
-Revises: be63b89
+Revises: signing_identity_001
 Create Date: 2026-04-18 04:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'ai_copilot_001_add_tables'
-down_revision = 'signing_tables_fix_columns' # I'll check the real last revision
+down_revision = 'signing_identity_001'
 branch_labels = None
 depends_on = None
 
