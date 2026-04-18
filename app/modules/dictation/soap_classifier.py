@@ -44,10 +44,10 @@ class SOAPClassifier:
         """
 
         try:
-            # Execute Gemini chat with new SDK
+            # Execute Gemini chat with new SDK using 2.5 model
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model='gemini-1.5-flash',
+                model='gemini-2.5-flash',
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     temperature=0.1,
