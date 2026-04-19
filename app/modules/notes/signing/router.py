@@ -160,10 +160,9 @@ async def sign_note_endpoint(
     private_pem = await private_key_file.read()
 
     signing_app = SigningApplicationService(db)
-    # Note: We need to update execute_signing to accept the PEM
     return await signing_app.execute_signing(
         note=note,
-        version=note["version"],
+        version=note, # Pass full note data (contains subjective, objective, etc)
         signer_id=user["sub"],
         private_key_pem=private_pem,
         idempotency_key=x_idempotency_key
