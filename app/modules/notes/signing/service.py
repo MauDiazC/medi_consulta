@@ -122,7 +122,7 @@ class SigningApplicationService:
             is_immutable=True
         )
         await self.signing_repo.save_snapshot(snapshot)
-        await self.note_repo.sign(note["id"])
+        await self.note_repo.sign(str(note["id"]), str(note["organization_id"]))
         await audit_log(self.db, "clinical_note", str(note["id"]), "signed", signer_id)
         
         await publish_event_tx(self.db, "note.signed", {
