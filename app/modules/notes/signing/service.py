@@ -135,7 +135,7 @@ class SigningApplicationService:
         await self.db.commit()
         return response
 
-    async def execute_encounter_sealing(self, encounter_id: str, signer_id: str, idempotency_key: str = None) -> dict:
+    async def execute_encounter_sealing(self, encounter_id: str, signer_id: str, private_key_pem: bytes = None, idempotency_key: str = None) -> dict:
         if idempotency_key:
             prev_resp = await self._check_idempotency(idempotency_key)
             if prev_resp: return prev_resp
@@ -146,11 +146,16 @@ class SigningApplicationService:
         if not org_id:
             raise ValueError("Encounter not found or has no organization.")
             
-        active_key = await self.signing_repo.get_active_organization_key(str(org_id))
-        if not active_key:
-            raise ValueError("No active signing key found for this organization.")
-
-        priv_pem = self._decrypt_key(active_key.encrypted_private_key)
+        # Determine which key to use for the seal
+        if private_key_pem:
+            priv_pem = private_key_pem
+            fingerprint = "personal-key-sealed"
+        else:
+            active_key = await self.signing_repo.get_active_organization_key(str(org_id))
+            if not active_key:
+                raise ValueError("No active signing key found for this organization.")
+            priv_pem = self._decrypt_key(active_key.encrypted_private_key)
+            fingerprint = active_key.public_key_fingerprint
 
         snapshots = await self.signing_repo.get_all_snapshots_for_encounter(encounter_id)
         if not snapshots:
@@ -170,7 +175,7 @@ class SigningApplicationService:
 
         seal = EncounterSeal(
             encounter_id=encounter_id, aggregate_hash=aggregate_hash, signature=signature,
-            signed_at=datetime.now(timezone.utc), public_key_fingerprint=active_key.public_key_fingerprint,
+            signed_at=datetime.now(timezone.utc), public_key_fingerprint=fingerprint,
             seal_payload=seal_payload,
             # Phase 3 & 5: Structural Hardening
             retention_until=self.retention_engine.calculate_retention_period(5),
