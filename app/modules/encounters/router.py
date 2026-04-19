@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+import uuid
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -35,13 +36,13 @@ async def list_encounters(
 
 @router.get("/patient/{patient_id}")
 async def encounters_by_patient(
-    patient_id: str,
+    patient_id: uuid.UUID,
     page=Depends(pagination_params),
     user=Depends(get_current_user),
     s=Depends(get_service),
 ):
     return await s.list_by_patient(
-        patient_id,
+        str(patient_id),
         user["org"],
         page.limit,
         page.offset,
@@ -50,13 +51,13 @@ async def encounters_by_patient(
 
 @router.get("/doctor/{doctor_id}")
 async def encounters_by_doctor(
-    doctor_id: str,
+    doctor_id: uuid.UUID,
     page=Depends(pagination_params),
     user=Depends(get_current_user),
     s=Depends(get_service),
 ):
     return await s.list_by_doctor(
-        doctor_id,
+        str(doctor_id),
         user["org"],
         page.limit,
         page.offset,
@@ -65,13 +66,13 @@ async def encounters_by_doctor(
 
 @router.get("/session/{session_id}")
 async def encounters_by_session(
-    session_id: str,
+    session_id: uuid.UUID,
     page=Depends(pagination_params),
     user=Depends(get_current_user),
     s=Depends(get_service),
 ):
     return await s.list_by_session(
-        session_id,
+        str(session_id),
         user["org"],
         page.limit,
         page.offset,
@@ -80,28 +81,28 @@ async def encounters_by_session(
 
 @router.get("/{encounter_id}")
 async def get_encounter(
-    encounter_id: str,
+    encounter_id: uuid.UUID,
     user=Depends(get_current_user),
     s=Depends(get_service),
 ):
-    return await s.get(encounter_id, user["org"])
+    return await s.get(str(encounter_id), user["org"])
 
 
 @router.put("/{encounter_id}")
 async def update_encounter(
-    encounter_id: str,
+    encounter_id: uuid.UUID,
     payload: EncounterUpdate,
     user=Depends(get_current_user),
     s=Depends(get_service),
 ):
-    return await s.update(encounter_id, user["org"], payload)
+    return await s.update(str(encounter_id), user["org"], payload)
 
 
 @router.patch("/{encounter_id}/close")
 async def close_encounter(
-    encounter_id: str,
+    encounter_id: uuid.UUID,
     user=Depends(get_current_user),
     s=Depends(get_service),
 ):
-    await s.close(encounter_id, user["org"])
+    await s.close(str(encounter_id), user["org"])
     return {"status": "closed"}
