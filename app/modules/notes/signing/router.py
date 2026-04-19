@@ -144,16 +144,23 @@ async def sign_note_endpoint(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Cryptographic Signing: Applies the physician's digital seal to the note.
+    Pre-requisite: Note must be finalized and user must have a registered public key.
+    """
+    # 1. Fetch note to get version and validate org
     repo = ClinicalNoteRepository(db)
-    # Validate organization isolation
     note = await repo.get(note_id, user["org"])
     if not note:
-        raise HTTPException(404, "Note not found")
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    if not note.get("version"):
+        raise HTTPException(status_code=400, detail="Note must be finalized before signing")
 
     signing_app = SigningApplicationService(db)
     return await signing_app.execute_signing(
         note=note,
-        version=note, # Current architecture returns note as dict with version
+        version=note["version"],
         signer_id=user["sub"],
         idempotency_key=x_idempotency_key
     )
