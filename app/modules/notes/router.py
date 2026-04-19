@@ -26,6 +26,15 @@ def get_service(
         ClinicalNoteRepository(db)
     )
 
+@router.get("/encounter/{encounter_id}")
+async def list_notes_by_encounter(
+    encounter_id: str,
+    user=Depends(get_current_user),
+    service=Depends(get_service),
+):
+    """Lists all note versions for a specific encounter."""
+    return await service.repo.list_by_encounter(encounter_id, user["org"])
+
 @router.get("/{note_id}")
 async def get_note(
     note_id: str,

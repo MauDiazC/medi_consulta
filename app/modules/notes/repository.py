@@ -152,9 +152,9 @@ class ClinicalNoteRepository:
             SELECT cn.*, e.organization_id
             FROM clinical_notes cn
             JOIN encounters e ON cn.encounter_id = e.id
-            WHERE cn.encounter_id=:eid
-            AND cn.version=:version
-            AND e.organization_id=:org_id
+            WHERE cn.encounter_id = CAST(:eid AS UUID)
+            AND cn.version = :version
+            AND e.organization_id = CAST(:org_id AS UUID)
             """),
             {
                 "eid": encounter_id,
@@ -163,3 +163,18 @@ class ClinicalNoteRepository:
             },
         )
         return r.mappings().first()
+
+    async def list_by_encounter(self, encounter_id: str, organization_id: str):
+        """Lists all versions of notes for a specific encounter, ensuring org isolation."""
+        r = await self.db.execute(
+            text("""
+            SELECT cn.*
+            FROM clinical_notes cn
+            JOIN encounters e ON cn.encounter_id = e.id
+            WHERE cn.encounter_id = CAST(:eid AS UUID)
+              AND e.organization_id = CAST(:org_id AS UUID)
+            ORDER BY cn.version DESC
+            """),
+            {"eid": encounter_id, "org_id": organization_id},
+        )
+        return r.mappings().all()
