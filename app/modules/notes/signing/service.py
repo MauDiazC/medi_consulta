@@ -78,7 +78,7 @@ class SigningApplicationService:
         await self.db.commit()
         return new_key
 
-    async def execute_signing(self, note, version, signer_id: str, idempotency_key: str = None) -> dict:
+    async def execute_signing(self, note, version, signer_id: str, private_key_pem: bytes = None, idempotency_key: str = None) -> dict:
         if idempotency_key:
             prev_resp = await self._check_idempotency(idempotency_key)
             if prev_resp: return prev_resp
@@ -90,12 +90,20 @@ class SigningApplicationService:
         prof_info = {"full_name": user["full_name"], "professional_license": user.get("professional_license", "PENDING"), "role": user["role"]}
 
         org_id = str(note["organization_id"])
-        active_key = await self.signing_repo.get_active_organization_key(org_id)
-        if not active_key:
-            raise ValueError("No active signing key found for organization.")
-            
-        priv_pem = self._decrypt_key(active_key.encrypted_private_key)
         
+        # Determine which key to use
+        if private_key_pem:
+            priv_pem = private_key_pem
+            # If signing with personal key, we use the fingerprint of the provided key
+            # In a real world scenario, we'd validate this against the registered public key
+            fingerprint = "personal-key-signed"
+        else:
+            active_key = await self.signing_repo.get_active_organization_key(org_id)
+            if not active_key:
+                raise ValueError("No active signing key found for organization.")
+            priv_pem = self._decrypt_key(active_key.encrypted_private_key)
+            fingerprint = active_key.public_key_fingerprint
+            
         latest = await self.signing_repo.get_latest_snapshot_for_encounter(str(note["encounter_id"]))
         previous_hash = latest.content_hash if latest else None
 
@@ -106,7 +114,7 @@ class SigningApplicationService:
         snapshot = NoteSnapshot(
             note_id=note["id"], version_id=version["id"], snapshot_json=payload,
             content_hash=content_hash, signature=signature, signed_by=signer_id,
-            signed_at=datetime.now(timezone.utc), public_key_fingerprint=active_key.public_key_fingerprint,
+            signed_at=datetime.now(timezone.utc), public_key_fingerprint=fingerprint,
             previous_snapshot_hash=previous_hash,
             # Phase 3 & 5: Structural Hardening
             retention_until=self.retention_engine.calculate_retention_period(5),

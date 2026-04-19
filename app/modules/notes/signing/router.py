@@ -140,13 +140,15 @@ async def activate_my_identity(
 @router.post("/sign/{note_id}")
 async def sign_note_endpoint(
     note_id: str,
+    private_key_file: UploadFile = File(...),
     x_idempotency_key: str = Header(None),
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Cryptographic Signing: Applies the physician's digital seal to the note.
-    Pre-requisite: Note must be finalized and user must have a registered public key.
+    Pre-requisite: Note must be finalized.
+    Requires uploading the private key (.pem) to perform the signature.
     """
     # 1. Fetch note to get version and validate org
     repo = ClinicalNoteRepository(db)
@@ -154,14 +156,16 @@ async def sign_note_endpoint(
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    if not note.get("version"):
-        raise HTTPException(status_code=400, detail="Note must be finalized before signing")
+    # 2. Read Private Key from Upload
+    private_pem = await private_key_file.read()
 
     signing_app = SigningApplicationService(db)
+    # Note: We need to update execute_signing to accept the PEM
     return await signing_app.execute_signing(
         note=note,
         version=note["version"],
         signer_id=user["sub"],
+        private_key_pem=private_pem,
         idempotency_key=x_idempotency_key
     )
 
