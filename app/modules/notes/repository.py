@@ -14,7 +14,7 @@ class ClinicalNoteRepository:
             SELECT cn.*, e.organization_id
             FROM clinical_notes cn
             JOIN encounters e ON cn.encounter_id = e.id
-            WHERE cn.id = :id AND e.organization_id = :org_id
+            WHERE cn.id = CAST(:id AS UUID) AND e.organization_id = CAST(:org_id AS UUID)
             """),
             {"id": note_id, "org_id": organization_id},
         )
@@ -27,8 +27,8 @@ class ClinicalNoteRepository:
             SELECT cn.*, e.organization_id
             FROM clinical_notes cn
             JOIN encounters e ON cn.encounter_id = e.id
-            WHERE cn.encounter_id = :eid
-              AND e.organization_id = :org_id
+            WHERE cn.encounter_id = CAST(:eid AS UUID)
+              AND e.organization_id = CAST(:org_id AS UUID)
               AND cn.is_active_draft = true
               AND cn.signed_at IS NULL
             ORDER BY cn.version DESC
@@ -62,12 +62,12 @@ class ClinicalNoteRepository:
             UPDATE clinical_notes
             SET {set_clause},
                 updated_at = now()
-            WHERE id = :note_id
+            WHERE id = CAST(:note_id AS UUID)
               AND updated_at = :expected_updated_at
               AND id IN (
                   SELECT cn.id FROM clinical_notes cn
                   JOIN encounters e ON cn.encounter_id = e.id
-                  WHERE e.organization_id = :org_id
+                  WHERE e.organization_id = CAST(:org_id AS UUID)
               )
             RETURNING *
             """),
@@ -87,11 +87,11 @@ class ClinicalNoteRepository:
             text("""
             UPDATE clinical_notes
             SET is_active_draft = false
-            WHERE id = :id
+            WHERE id = CAST(:id AS UUID)
             AND id IN (
                 SELECT cn.id FROM clinical_notes cn
                 JOIN encounters e ON cn.encounter_id = e.id
-                WHERE e.organization_id = :org_id
+                WHERE e.organization_id = CAST(:org_id AS UUID)
             )
             """),
             {"id": note_id, "org_id": organization_id},
@@ -112,9 +112,9 @@ class ClinicalNoteRepository:
                 created_by,
                 is_active_draft
             )
-            SELECT :encounter_id, :version, :subjective, :objective, :assessment, :plan, :created_by, true
+            SELECT CAST(:encounter_id AS UUID), :version, :subjective, :objective, :assessment, :plan, CAST(:created_by AS UUID), true
             FROM encounters e
-            WHERE e.id = :encounter_id AND e.organization_id = :org_id
+            WHERE e.id = CAST(:encounter_id AS UUID) AND e.organization_id = CAST(:org_id AS UUID)
             RETURNING *
             """),
             {**payload, "org_id": organization_id},
@@ -129,11 +129,11 @@ class ClinicalNoteRepository:
             UPDATE clinical_notes
             SET signed_at = now(),
                 is_active_draft = false
-            WHERE id = :id
+            WHERE id = CAST(:id AS UUID)
             AND id IN (
                 SELECT cn.id FROM clinical_notes cn
                 JOIN encounters e ON cn.encounter_id = e.id
-                WHERE e.organization_id = :org_id
+                WHERE e.organization_id = CAST(:org_id AS UUID)
             )
             """),
             {"id": note_id, "org_id": organization_id},
