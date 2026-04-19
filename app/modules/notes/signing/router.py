@@ -182,13 +182,22 @@ async def get_snapshot_endpoint(
 @router.post("/seal/{encounter_id}")
 async def seal_encounter_endpoint(
     encounter_id: str,
+    private_key_file: UploadFile = File(...),
     x_idempotency_key: str = Header(None),
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Final Encounter Sealing: Locks the entire encounter metadata and all its signed notes.
+    Requires uploading the private key (.pem) to perform the final cryptographic seal.
+    """
+    # Read Private Key from Upload
+    private_pem = await private_key_file.read()
+
     signing_app = SigningApplicationService(db)
     return await signing_app.execute_encounter_sealing(
         encounter_id=encounter_id,
         signer_id=user["sub"],
+        private_key_pem=private_pem,
         idempotency_key=x_idempotency_key
     )
