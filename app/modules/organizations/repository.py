@@ -65,7 +65,7 @@ class OrganizationRepository:
                     (SELECT COUNT(DISTINCT patient_id) FROM encounters WHERE doctor_id = CAST(:uid AS UUID)) as my_patients,
                     (SELECT COUNT(*) FROM encounters WHERE doctor_id = CAST(:uid AS UUID)) as my_total_encounters,
                     (SELECT COUNT(*) FROM clinical_notes WHERE created_by = CAST(:uid AS UUID) AND signed_at IS NULL) as pending_signatures,
-                    (SELECT COUNT(*) FROM clinical_sessions WHERE created_by = CAST(:uid AS UUID) AND is_active = true) as my_active_sessions,
+                    (SELECT COUNT(*) FROM clinical_sessions WHERE user_id = CAST(:uid AS UUID) AND is_active = true) as my_active_sessions,
                     'personal' as scope
             """
         
