@@ -123,7 +123,7 @@ class ClinicalNoteRepository:
         return r.mappings().first()
 
     async def sign(self, note_id: str, organization_id: str):
-        """Secure sign validating organization."""
+        """Secure sign validating organization and closing the draft."""
         await self.db.execute(
             text("""
             UPDATE clinical_notes
@@ -137,6 +137,24 @@ class ClinicalNoteRepository:
             )
             """),
             {"id": note_id, "org_id": organization_id},
+        )
+        await self.db.commit()
+
+    async def supersede_previous_versions(self, encounter_id: str, current_note_id: str):
+        """
+        Legal Maintenance: Marks all previous versions of an encounter as superseded.
+        Ensures only the authoritative (signed or latest) version remains in focus.
+        """
+        await self.db.execute(
+            text("""
+                UPDATE clinical_notes
+                SET is_active_draft = false,
+                    updated_at = now()
+                WHERE encounter_id = CAST(:eid AS UUID)
+                  AND id != CAST(:current_id AS UUID)
+                  AND signed_at IS NULL
+            """),
+            {"eid": encounter_id, "current_id": current_note_id}
         )
         await self.db.commit()
 

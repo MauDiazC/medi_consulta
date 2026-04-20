@@ -107,11 +107,7 @@ class ClinicalNoteService:
 
         new_version = draft["version"] + 1
 
-        await self.repo.deactivate_draft(
-            draft["id"],
-            organization_id
-        )
-
+        # 1. Create the new version first
         new_note = await self.repo.create_new_version(
             {
                 "encounter_id": encounter_id,
@@ -124,6 +120,9 @@ class ClinicalNoteService:
             },
             organization_id
         )
+
+        # 2. Cleanup: Marks all other versions for THIS encounter as superseded/inactive
+        await self.repo.supersede_previous_versions(encounter_id, new_note["id"])
 
         await audit_log(
             self.repo.db,
@@ -138,7 +137,7 @@ class ClinicalNoteService:
 
     async def sign(self, note_id: str, doctor_id: str, organization_id: str, private_key_pem: bytes = None):
         """
-        Orchestrates the signing of a clinical note.
+        Orchestrates the signing of a clinical note and supersedes older versions.
         """
         note = await self.repo.get(note_id, organization_id)
 
@@ -161,12 +160,16 @@ class ClinicalNoteService:
         from app.modules.notes.signing.service import SigningApplicationService
         signing_app = SigningApplicationService(self.repo.db)
 
-        # execute_signing manages the database transaction block (snapshot + sign + audit)
+        # 1. Sign this specific version
         await signing_app.execute_signing(
             note,
-            note, # In the original code it passed (note, version) but repo returns note with version
-            str(doctor_id)
+            note, 
+            str(doctor_id),
+            private_key_pem=private_key_pem
         )
+
+        # 2. Cleanup: Ensure only THIS version remains active (authoritative)
+        await self.repo.supersede_previous_versions(str(note["encounter_id"]), note_id)
 
         await publish_event(
             "note.signed",
