@@ -35,6 +35,32 @@ async def get_org_summary(
         user_id=user["sub"]
     )
 
+@router.get("/diag/context")
+async def debug_context(
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Diagnostic: Check token vs database state."""
+    # 1. Check if user exists in DB
+    r = await db.execute(
+        text("SELECT id, email, role, organization_id, active FROM users WHERE id = CAST(:id AS UUID)"),
+        {"id": user["sub"]}
+    )
+    db_user = r.mappings().first()
+
+    # 2. Check encounters for this user
+    e = await db.execute(
+        text("SELECT COUNT(*) as count FROM encounters WHERE doctor_id = CAST(:id AS UUID)"),
+        {"id": user["sub"]}
+    )
+    encounters_count = e.mappings().first()
+
+    return {
+        "token_context": user,
+        "db_user_record": db_user,
+        "raw_encounters_count": encounters_count["count"] if encounters_count else 0
+    }
+
 @router.post("")
 async def create_org(
     payload: OrganizationCreate, 
