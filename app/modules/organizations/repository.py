@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,11 +61,19 @@ class OrganizationRepository:
         params = {"oid": org_id, "uid": user_id}
 
         if start_date:
-            date_filter += " AND created_at >= :start_date"
-            params["start_date"] = start_date
+            try:
+                # Handle YYYY-MM-DD
+                params["start_date"] = datetime.strptime(start_date, "%Y-%m-%d")
+                date_filter += " AND created_at >= :start_date"
+            except ValueError:
+                pass # Or raise error
+        
         if end_date:
-            date_filter += " AND created_at <= :end_date"
-            params["end_date"] = end_date
+            try:
+                params["end_date"] = datetime.strptime(end_date, "%Y-%m-%d")
+                date_filter += " AND created_at <= :end_date"
+            except ValueError:
+                pass
 
         if role == "admin":
             # Global Clinic View
@@ -78,7 +87,6 @@ class OrganizationRepository:
             """
         else:
             # Clinical Staff View (Personal Stats)
-            # We count ALL encounters (open or closed) to show historical performance.
             query = f"""
                 SELECT 
                     (
@@ -127,6 +135,59 @@ class OrganizationRepository:
             params,
         )
         return r.mappings().first()
+
+    async def update(self, org_id: str, payload):
+        r = await self.db.execute(
+            text("""
+                UPDATE organizations
+                SET name = COALESCE(:name, name),
+                    address = COALESCE(:address, address),
+                    phone = COALESCE(:phone, phone),
+                    description = COALESCE(:description, description)
+                WHERE id = CAST(:id AS UUID)
+                RETURNING *
+            """),
+            {
+                "id": org_id, 
+                "name": payload.name,
+                "address": payload.address,
+                "phone": payload.phone,
+                "description": payload.description
+            },
+        )
+        # Commit removed for service orchestration
+        return r.mappings().first()
+
+    async def deactivate(self, org_id: str):
+        await self.db.execute(
+            text("""
+                UPDATE organizations
+                SET active=false
+                WHERE id = CAST(:id AS UUID)
+            """),
+            {"id": org_id},
+        )
+        # Commit removed for service orchestration
+
+    async def activate(self, org_id: str):
+        """Re-enables an organization."""
+        await self.db.execute(
+            text("""
+                UPDATE organizations
+                SET active=true
+                WHERE id = CAST(:id AS UUID)
+            """),
+            {"id": org_id},
+        )
+        # Commit removed for service orchestration
+
+    async def hard_delete(self, org_id: str):
+        """DANGER: Physical deletion. Use only for dev/testing."""
+        await self.db.execute(
+            text("DELETE FROM organizations WHERE id = CAST(:id AS UUID)"),
+            {"id": org_id}
+        )
+        await self.db.commit()
 
     async def update(self, org_id: str, payload):
         r = await self.db.execute(
