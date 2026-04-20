@@ -46,22 +46,30 @@ async def debug_context(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Diagnostic: Check token vs database state."""
-    # 1. Check if user exists in DB
+    """Diagnostic: Deep dive into DB state."""
+    # 1. User check
     r = await db.execute(
         text("SELECT id, email, role, organization_id, active FROM users WHERE id = CAST(:id AS UUID)"),
         {"id": user["sub"]}
     )
     db_user = r.mappings().first()
 
-    # 2. Check encounters for this user
-    e = await db.execute(
+    # 2. Encounters for THIS user
+    e_user = await db.execute(
         text("SELECT id, organization_id, status, created_at FROM encounters WHERE doctor_id = CAST(:id AS UUID)"),
         {"id": user["sub"]}
     )
-    encounters = e.mappings().all()
+    my_encounters = e_user.mappings().all()
 
-    # 3. Check organizations
+    # 3. GLOBAL Encounter Check (Are there ANY encounters at all?)
+    e_global = await db.execute(text("SELECT id, doctor_id, organization_id, status FROM encounters LIMIT 5"))
+    any_encounters = e_global.mappings().all()
+
+    # 4. Patient Check
+    p_check = await db.execute(text("SELECT COUNT(*) as count FROM patients WHERE organization_id = CAST(:oid AS UUID)"), {"oid": user["org"]})
+    patient_count = p_check.mappings().first()
+
+    # 5. Org Check
     o = await db.execute(
         text("SELECT id, name FROM organizations WHERE id = CAST(:id AS UUID)"),
         {"id": user["org"]}
@@ -72,16 +80,25 @@ async def debug_context(
         "token_context": user,
         "db_user_record": db_user,
         "org_record": org_record,
-        "encounters": [
+        "my_encounters_count": len(my_encounters),
+        "my_encounters": [
             {
                 "id": str(enc["id"]),
                 "organization_id": str(enc["organization_id"]),
-                "status": enc["status"],
-                "created_at": enc["created_at"].isoformat() if enc["created_at"] else None
+                "status": enc["status"]
             }
-            for enc in encounters
+            for enc in my_encounters
         ],
-        "raw_encounters_count": len(encounters)
+        "global_system_encounters": [
+            {
+                "id": str(enc["id"]),
+                "doctor_id": str(enc["doctor_id"]),
+                "org_id": str(enc["organization_id"]),
+                "status": enc["status"]
+            }
+            for enc in any_encounters
+        ],
+        "organization_patient_count": patient_count["count"] if patient_count else 0
     }
 
 @router.post("")
