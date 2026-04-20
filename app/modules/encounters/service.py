@@ -35,3 +35,9 @@ class EncounterService:
 
     async def close(self, encounter_id, org):
         await self.repo.close(encounter_id, org)
+
+    async def reassign(self, encounter_id, org, new_doctor_id):
+        encounter = await self.repo.reassign_doctor(encounter_id, org, new_doctor_id)
+        if not encounter:
+            raise HTTPException(404, "Encounter not found")
+        return encounter

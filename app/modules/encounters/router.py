@@ -106,3 +106,16 @@ async def close_encounter(
 ):
     await s.close(str(encounter_id), user["org"])
     return {"status": "closed"}
+
+
+@router.patch("/{encounter_id}/reassign/{new_doctor_id}")
+async def reassign_encounter(
+    encounter_id: uuid.UUID,
+    new_doctor_id: uuid.UUID,
+    user=Depends(get_current_user),
+    s=Depends(get_service),
+):
+    """
+    Emergency endpoint to reassign an encounter to a different doctor.
+    """
+    return await s.reassign(str(encounter_id), user["org"], str(new_doctor_id))

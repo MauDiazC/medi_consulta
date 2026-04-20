@@ -170,3 +170,20 @@ class EncounterRepository:
             {"id": encounter_id, "org": org},
         )
         await self.db.commit()
+
+    async def reassign_doctor(self, encounter_id: str, org: str, new_doctor_id: str):
+        r = await self.db.execute(
+            text("""
+                UPDATE encounters
+                SET doctor_id = CAST(:doctor AS UUID)
+                WHERE id = CAST(:id AS UUID) AND organization_id = CAST(:org AS UUID)
+                RETURNING *
+            """),
+            {
+                "id": encounter_id,
+                "org": org,
+                "doctor": new_doctor_id,
+            },
+        )
+        await self.db.commit()
+        return r.mappings().first()
