@@ -46,6 +46,16 @@ class AppointmentRepository:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
+    async def get_latest_for_patient(self, patient_id: str):
+        """
+        Busca la cita más reciente (ya sea futura o pasada cercana) para un paciente.
+        """
+        stmt = select(Appointment).where(
+            Appointment.patient_id == patient_id
+        ).order_by(Appointment.scheduled_at.desc()).limit(1)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_full_details(self, appointment_id: str):
         """
         Joins with patients and doctors to get names for the AI.

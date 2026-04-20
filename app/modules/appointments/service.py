@@ -1,9 +1,13 @@
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 from .models import Appointment
 from .repository import AppointmentRepository
 from .notifier import AppointmentNotifier
+from app.modules.patients.repository import PatientRepository
 from app.core.events import publish_event
+
+logger = logging.getLogger("appointments.service")
 
 class AppointmentService:
     def __init__(self, repo: AppointmentRepository):
@@ -34,8 +38,14 @@ class AppointmentService:
         # Get phone from metadata or fallback
         phone = details.get("metadata_json", {}).get("phone")
         if not phone:
-            # In a real scenario, we'd fetch it from Patient profile
-            # For now, we expect it in metadata for the n8n integration
+            # Fallback to patient profile if phone is not in metadata
+            patient_repo = PatientRepository(self.repo.db)
+            patient = await patient_repo.get(str(details["patient_id"]), str(details["organization_id"]))
+            if patient:
+                phone = patient.phone_number
+
+        if not phone:
+            logger.warning(f"No phone number found for appointment {appointment_id}")
             return
 
         ai_msg = await self.notifier.generate_ai_message(
@@ -62,16 +72,57 @@ class AppointmentService:
         """
         Logic for the background worker.
         """
-        # 8h window (poll appointments in next 8 hours)
-        eight_h = await self.repo.get_pending_reminders(480, "reminder_8h_sent")
-        for appt in eight_h:
-            await self.trigger_notification(str(appt.id), "8h")
-            appt.reminder_8h_sent = True
+        # 12h window (poll appointments in next 12 hours)
+        twelve_h = await self.repo.get_pending_reminders(720, "reminder_12h_sent")
+        for appt in twelve_h:
+            await self.trigger_notification(str(appt.id), "12h")
+            appt.reminder_12h_sent = True
             await self.repo.update(appt)
 
-        # 15m window
-        fifteen_m = await self.repo.get_pending_reminders(15, "reminder_15m_sent")
-        for appt in fifteen_m:
-            await self.trigger_notification(str(appt.id), "15m")
-            appt.reminder_15m_sent = True
+        # 5m window
+        five_m = await self.repo.get_pending_reminders(5, "reminder_5m_sent")
+        for appt in five_m:
+            await self.trigger_notification(str(appt.id), "5m")
+            appt.reminder_5m_sent = True
             await self.repo.update(appt)
+
+    async def process_whatsapp_reply(self, phone: str, message_text: str):
+        """
+        Incoming webhook processing.
+        """
+        # 1. Buscar paciente
+        patient_repo = PatientRepository(self.repo.db)
+        patient = await patient_repo.get_by_phone(phone)
+        if not patient:
+            logger.warning(f"WhatsApp reply from unknown phone: {phone}")
+            return
+
+        # 2. Buscar cita más reciente
+        appointment = await self.repo.get_latest_for_patient(str(patient.id))
+        if not appointment:
+            logger.warning(f"WhatsApp reply from patient {patient.id} but no appointment found")
+            return
+
+        # 3. Extraer intención
+        intent = await self.notifier.extract_intent(message_text)
+        
+        if intent == "confirm":
+            appointment.patient_confirmation = True
+            appointment.status = "confirmed"
+            await self.repo.update(appointment)
+            await self.notifier.send_whatsapp(phone, "¡Gracias! Tu cita ha sido confirmada.", str(appointment.id))
+        elif intent == "cancel":
+            appointment.patient_confirmation = False
+            appointment.status = "cancelled"
+            await self.repo.update(appointment)
+            await self.notifier.send_whatsapp(phone, "Entendido. Tu cita ha sido cancelada. Si deseas reagendar, contáctanos.", str(appointment.id))
+        else:
+            # Quizás es una duda, podrías notificar al doctor o responder algo genérico
+            await self.notifier.send_whatsapp(phone, "He recibido tu mensaje. Un asistente humano lo revisará pronto.", str(appointment.id))
+        
+        # Publicar evento para actualizar el dashboard en tiempo real
+        await publish_event("appointment.updated", {
+            "appointment_id": str(appointment.id),
+            "status": appointment.status,
+            "patient_id": str(patient.id)
+        })

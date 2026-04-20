@@ -17,8 +17,8 @@ class Appointment(Base):
     
     # Notification tracking
     reminder_immediate_sent = Column(Boolean, default=False)
-    reminder_8h_sent = Column(Boolean, default=False)
-    reminder_15m_sent = Column(Boolean, default=False)
+    reminder_12h_sent = Column(Boolean, default=False)
+    reminder_5m_sent = Column(Boolean, default=False)
     
     patient_confirmation = Column(Boolean, nullable=True)
     

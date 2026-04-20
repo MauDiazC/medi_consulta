@@ -81,6 +81,21 @@ class PatientRepository:
         await self.db.commit()
         return r.mappings().first()
 
+    async def get_by_phone(self, phone: str):
+        """
+        Busca un paciente por su número de teléfono (formato internacional).
+        """
+        r = await self.db.execute(
+            text("""
+                SELECT *
+                FROM patients
+                WHERE phone_number = :p OR phone_number = :p_with_plus
+                LIMIT 1
+            """),
+            {"p": phone.replace("+", ""), "p_with_plus": f"+{phone.replace('+', '')}"},
+        )
+        return r.mappings().first()
+
     async def deactivate(self, patient_id, org):
         await self.db.execute(
             text("""

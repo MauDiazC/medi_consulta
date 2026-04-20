@@ -28,6 +28,9 @@ external_validators = [
     Validator("GOOGLE_AI_API_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
     Validator("GOOGLE_CLIENT_ID", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
     Validator("RESEND_API_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator("META_WHATSAPP_TOKEN", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator("META_PHONE_NUMBER_ID", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator("META_VERIFY_TOKEN", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
 ]
 
 # Nota: En Railway, si usas Supabase para Auth, DEBES poner las variables.

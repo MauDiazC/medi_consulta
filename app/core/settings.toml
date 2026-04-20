@@ -14,5 +14,10 @@ GOOGLE_CLIENT_ID = "dummy-client-id"
 ELEVENLABS_API_KEY = "dummy-eleven-key"
 ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM" # Rachel (default voice)
 
+# Meta Cloud API (WhatsApp)
+META_WHATSAPP_TOKEN = "EAAG..."
+META_PHONE_NUMBER_ID = "123456789"
+META_VERIFY_TOKEN = "mediconsulta_verify_token"
+
 [production]
 # Overrides for production - KEYS SHOULD BE IN RAILWAY ENV VARS
