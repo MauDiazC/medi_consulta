@@ -50,7 +50,7 @@ class OrganizationRepository:
                     (SELECT COUNT(*) FROM patients WHERE organization_id = CAST(:id AS UUID)) as total_patients,
                     (SELECT COUNT(*) FROM encounters WHERE organization_id = CAST(:id AS UUID)) as total_encounters,
                     (SELECT COUNT(*) FROM clinical_sessions WHERE organization_id = CAST(:id AS UUID) AND is_active = true) as active_sessions,
-                    (SELECT COUNT(*) FROM users WHERE organization_id = CAST(:id AS UUID) AND is_active = true) as total_staff
+                    (SELECT COUNT(*) FROM users WHERE organization_id = CAST(:id AS UUID) AND active = true) as total_staff
             """),
             {"id": org_id},
         )
