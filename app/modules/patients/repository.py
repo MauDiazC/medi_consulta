@@ -10,16 +10,17 @@ class PatientRepository:
         r = await self.db.execute(
             text("""
                 INSERT INTO patients(
-                    first_name, last_name, email, 
+                    first_name, last_name, phone_number, email, 
                     birth_date, sex,
                     organization_id, is_active
                 )
-                VALUES(:f, :l, :e, :b, :s, CAST(:o AS UUID), true)
+                VALUES(:f, :l, :p, :e, :b, :s, CAST(:o AS UUID), true)
                 RETURNING *
             """),
             {
                 "f": payload.first_name, 
                 "l": payload.last_name, 
+                "p": payload.phone_number,
                 "e": payload.email,
                 "b": payload.birth_date,
                 "s": payload.sex,
@@ -59,6 +60,7 @@ class PatientRepository:
                 UPDATE patients
                 SET first_name = COALESCE(:f, first_name),
                     last_name  = COALESCE(:l, last_name),
+                    phone_number = COALESCE(:p, phone_number),
                     email      = COALESCE(:e, email),
                     birth_date = COALESCE(:b, birth_date),
                     sex        = COALESCE(:s, sex)
@@ -70,6 +72,7 @@ class PatientRepository:
                 "org": org,
                 "f": payload.first_name,
                 "l": payload.last_name,
+                "p": payload.phone_number,
                 "e": payload.email,
                 "b": payload.birth_date,
                 "s": payload.sex

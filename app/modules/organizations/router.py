@@ -20,6 +20,14 @@ def get_service(db=Depends(get_db)):
     )
 
 
+@router.get("/dashboard/summary")
+async def get_org_summary(
+    user=Depends(require_role("admin")),
+    s=Depends(get_service)
+):
+    """Admin Dashboard: Get high-level stats for the organization."""
+    return await s.repo.get_summary_stats(user["org"])
+
 @router.post("")
 async def create_org(
     payload: OrganizationCreate, 

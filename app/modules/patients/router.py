@@ -16,6 +16,18 @@ router = APIRouter(prefix="/patients", tags=["patients"])
 def get_service(db=Depends(get_db)):
     return PatientService(PatientRepository(db))
 
+def mask_patient_data(patient):
+    """
+    Surgical privacy helper.
+    Hides PII for administrative roles while keeping the record valid for counts/stats.
+    """
+    p = dict(patient)
+    p["first_name"] = p["first_name"][0] + "****"
+    p["last_name"] = p["last_name"][0] + "****"
+    p["email"] = "****@****.com" if p.get("email") else None
+    if p.get("phone_number"):
+        p["phone_number"] = "******" + p["phone_number"][-4:]
+    return p
 
 @router.post("")
 async def create_patient(
@@ -33,8 +45,13 @@ async def list_patients(
     user=Depends(get_current_user),
     s=Depends(get_service),
 ):
-    """SaaS Guard: List only patients from your organization."""
-    return await s.list(user["org"], page.limit, page.offset)
+    """SaaS Guard: List only patients from your organization. Masks data for Admins."""
+    patients = await s.list(user["org"], page.limit, page.offset)
+    
+    if user["role"] == "admin":
+        return [mask_patient_data(p) for p in patients]
+        
+    return patients
 
 
 @router.get("/{patient_id}")
@@ -43,10 +60,14 @@ async def get_patient(
     user=Depends(get_current_user),
     s=Depends(get_service),
 ):
-    """Secure fetch: Validate organization ownership."""
+    """Secure fetch: Validate organization ownership. Masks data for Admins."""
     patient = await s.get(patient_id, user["org"])
     if not patient:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
+        
+    if user["role"] == "admin":
+        return mask_patient_data(patient)
+        
     return patient
 
 
@@ -79,7 +100,6 @@ async def activate_patient(
     s=Depends(get_service),
 ):
     """Re-enables a patient profile."""
-    # We need to implement activate in service/repo if not already there
     await s.repo.db.execute(
         text("UPDATE patients SET is_active=true WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)"),
         {"id": patient_id, "org": user["org"]}
