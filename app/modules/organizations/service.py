@@ -43,3 +43,19 @@ class OrganizationService:
     async def activate(self, org_id):
         async with self.repo.db.begin():
             await self.repo.activate(org_id)
+
+    async def get_summary_stats(
+        self, 
+        org_id: str, 
+        role: str, 
+        user_id: str,
+        start_date: str | None = None,
+        end_date: str | None = None
+    ):
+        return await self.repo.get_summary_stats(
+            org_id=org_id,
+            role=role,
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date
+        )

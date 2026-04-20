@@ -24,6 +24,8 @@ def get_service(db=Depends(get_db)):
 
 @router.get("/dashboard/summary")
 async def get_org_summary(
+    start_date: str | None = None,
+    end_date: str | None = None,
     user=Depends(get_current_user),
     s=Depends(get_service)
 ):
@@ -31,10 +33,12 @@ async def get_org_summary(
     Personalized Dashboard Summary.
     Returns global stats for admins and personal performance for clinical staff.
     """
-    return await s.repo.get_summary_stats(
+    return await s.get_summary_stats(
         org_id=user["org"],
         role=user["role"],
-        user_id=user["sub"]
+        user_id=user["sub"],
+        start_date=start_date,
+        end_date=end_date
     )
 
 @router.get("/diag/context")
@@ -52,15 +56,32 @@ async def debug_context(
 
     # 2. Check encounters for this user
     e = await db.execute(
-        text("SELECT COUNT(*) as count FROM encounters WHERE doctor_id = CAST(:id AS UUID)"),
+        text("SELECT id, organization_id, status, created_at FROM encounters WHERE doctor_id = CAST(:id AS UUID)"),
         {"id": user["sub"]}
     )
-    encounters_count = e.mappings().first()
+    encounters = e.mappings().all()
+
+    # 3. Check organizations
+    o = await db.execute(
+        text("SELECT id, name FROM organizations WHERE id = CAST(:id AS UUID)"),
+        {"id": user["org"]}
+    )
+    org_record = o.mappings().first()
 
     return {
         "token_context": user,
         "db_user_record": db_user,
-        "raw_encounters_count": encounters_count["count"] if encounters_count else 0
+        "org_record": org_record,
+        "encounters": [
+            {
+                "id": str(enc["id"]),
+                "organization_id": str(enc["organization_id"]),
+                "status": enc["status"],
+                "created_at": enc["created_at"].isoformat() if enc["created_at"] else None
+            }
+            for enc in encounters
+        ],
+        "raw_encounters_count": len(encounters)
     }
 
 @router.post("")

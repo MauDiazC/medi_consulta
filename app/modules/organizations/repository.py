@@ -42,18 +42,36 @@ class OrganizationRepository:
         )
         return r.mappings().first()
 
-    async def get_summary_stats(self, org_id: str, role: str, user_id: str):
+    async def get_summary_stats(
+        self, 
+        org_id: str, 
+        role: str, 
+        user_id: str,
+        start_date: str | None = None,
+        end_date: str | None = None
+    ):
         """
         Fetches role-aware statistics for the dashboard.
         Admins see clinic-wide totals.
         Doctors see their own historical performance and current pending tasks.
+        Includes optional date range filtering.
         """
+        date_filter = ""
+        params = {"oid": org_id, "uid": user_id}
+
+        if start_date:
+            date_filter += " AND created_at >= :start_date"
+            params["start_date"] = start_date
+        if end_date:
+            date_filter += " AND created_at <= :end_date"
+            params["end_date"] = end_date
+
         if role == "admin":
             # Global Clinic View
-            query = """
+            query = f"""
                 SELECT 
                     (SELECT COUNT(*) FROM patients WHERE organization_id = CAST(:oid AS UUID)) as total_patients,
-                    (SELECT COUNT(*) FROM encounters WHERE organization_id = CAST(:oid AS UUID)) as total_encounters,
+                    (SELECT COUNT(*) FROM encounters WHERE organization_id = CAST(:oid AS UUID) {date_filter}) as total_encounters,
                     (SELECT COUNT(*) FROM clinical_sessions WHERE organization_id = CAST(:oid AS UUID) AND is_active = true) as active_sessions,
                     (SELECT COUNT(*) FROM users WHERE organization_id = CAST(:oid AS UUID) AND active = true) as total_staff,
                     'global' as scope
@@ -61,30 +79,38 @@ class OrganizationRepository:
         else:
             # Clinical Staff View (Personal Stats)
             # We count ALL encounters (open or closed) to show historical performance.
-            query = """
+            query = f"""
                 SELECT 
                     (
                         SELECT COUNT(DISTINCT patient_id) 
                         FROM encounters 
                         WHERE doctor_id = CAST(:uid AS UUID) 
                         AND organization_id = CAST(:oid AS UUID)
+                        {date_filter}
                     ) as my_patients,
                     (
                         SELECT COUNT(*) 
                         FROM encounters 
                         WHERE doctor_id = CAST(:uid AS UUID) 
                         AND organization_id = CAST(:oid AS UUID)
+                        {date_filter}
                     ) as my_total_encounters,
                     (
                         SELECT COUNT(DISTINCT encounter_id) 
                         FROM clinical_notes cn1
                         WHERE cn1.created_by = CAST(:uid AS UUID) 
                         AND cn1.signed_at IS NULL
+                        AND EXISTS (
+                            SELECT 1 FROM encounters e 
+                            WHERE e.id = cn1.encounter_id 
+                            AND e.organization_id = CAST(:oid AS UUID)
+                        )
                         AND NOT EXISTS (
                             SELECT 1 FROM clinical_notes cn2 
                             WHERE cn2.encounter_id = cn1.encounter_id 
                             AND cn2.signed_at IS NOT NULL
                         )
+                        {date_filter.replace('created_at', 'cn1.created_at')}
                     ) as pending_signatures,
                     (
                         SELECT COUNT(*) 
@@ -98,7 +124,7 @@ class OrganizationRepository:
         
         r = await self.db.execute(
             text(query),
-            {"oid": org_id, "uid": user_id},
+            params,
         )
         return r.mappings().first()
 
