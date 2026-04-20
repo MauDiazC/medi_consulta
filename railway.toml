@@ -14,9 +14,16 @@ restartPolicy = "ON_FAILURE"
 preDeployCommand = "alembic upgrade head"
 startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 
-# Service 2: Background Task Processor (ARQ)
+# Service 2: Background Task Processor (ARQ Realtime)
 [services.worker]
-name = "worker"
+name = "worker-realtime"
 restartPolicy = "ALWAYS"
 # No networking needed for worker
 startCommand = "python -m arq app.worker.realtime_worker.WorkerSettings"
+
+# Service 3: Appointment Notification Processor (WhatsApp)
+[services.worker-appointments]
+name = "worker-appointments"
+restartPolicy = "ALWAYS"
+# Dedicated loop for clinical appointment safety
+startCommand = "python -m arq app.worker.appointments_worker.AppointmentWorkerSettings"

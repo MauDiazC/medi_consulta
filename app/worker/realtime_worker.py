@@ -113,16 +113,6 @@ async def handle_note_signed_task(ctx, event_data: dict):
 
 # --- Background Loops ---
 
-async def run_appointment_scheduler():
-    while True:
-        try:
-            async with AsyncSessionLocal() as db:
-                service = AppointmentService(AppointmentRepository(db))
-                await service.process_pending_reminders()
-        except Exception as e:
-            logger.error(f"Appointment scheduler error: {str(e)}", exc_info=True)
-        await asyncio.sleep(60)
-
 async def relay_outbox_events():
     """
     Polls outbox_events and:
@@ -180,14 +170,11 @@ class WorkerSettings:
     async def on_startup(ctx):
         logger.info("ARQ Worker starting...")
         # Start our custom loops in the background within the ARQ process
-        ctx['scheduler_task'] = asyncio.create_task(run_appointment_scheduler())
         ctx['outbox_task'] = asyncio.create_task(relay_outbox_events())
 
     @staticmethod
     async def on_shutdown(ctx):
         logger.info("ARQ Worker shutting down...")
-        if 'scheduler_task' in ctx:
-            ctx['scheduler_task'].cancel()
         if 'outbox_task' in ctx:
             ctx['outbox_task'].cancel()
 
