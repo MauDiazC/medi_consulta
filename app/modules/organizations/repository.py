@@ -60,11 +60,22 @@ class OrganizationRepository:
             """
         else:
             # Clinical Staff View (Personal Stats)
+            # pending_signatures logic: count unique encounters where the LATEST note version is not signed.
             query = """
                 SELECT 
                     (SELECT COUNT(DISTINCT patient_id) FROM encounters WHERE doctor_id = CAST(:uid AS UUID)) as my_patients,
                     (SELECT COUNT(*) FROM encounters WHERE doctor_id = CAST(:uid AS UUID)) as my_total_encounters,
-                    (SELECT COUNT(*) FROM clinical_notes WHERE created_by = CAST(:uid AS UUID) AND signed_at IS NULL) as pending_signatures,
+                    (
+                        SELECT COUNT(DISTINCT encounter_id) 
+                        FROM clinical_notes cn1
+                        WHERE cn1.created_by = CAST(:uid AS UUID) 
+                        AND cn1.signed_at IS NULL
+                        AND NOT EXISTS (
+                            SELECT 1 FROM clinical_notes cn2 
+                            WHERE cn2.encounter_id = cn1.encounter_id 
+                            AND cn2.signed_at IS NOT NULL
+                        )
+                    ) as pending_signatures,
                     (SELECT COUNT(*) FROM clinical_sessions WHERE user_id = CAST(:uid AS UUID) AND is_active = true) as my_active_sessions,
                     'personal' as scope
             """
