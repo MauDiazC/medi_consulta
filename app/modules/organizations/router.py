@@ -46,30 +46,42 @@ async def debug_context(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Diagnostic: Deep dive into DB state."""
-    # 1. User check
+    """Diagnostic: Deep dive into DB state and identities."""
+    # 1. User check (current logged in user)
     r = await db.execute(
         text("SELECT id, email, role, organization_id, active FROM users WHERE id = CAST(:id AS UUID)"),
         {"id": user["sub"]}
     )
     db_user = r.mappings().first()
 
-    # 2. Encounters for THIS user
+    # 2. Identities Audit (Check specifically for the IDs in question)
+    ids_to_audit = [
+        'eb1fcdad-8823-4690-b4b4-14948c6fcf95',
+        '009ea9b5-bc19-4a12-9417-7285d76d8174',
+        user["sub"]
+    ]
+    audit_r = await db.execute(
+        text("SELECT id, email, role, organization_id FROM users WHERE id IN (SELECT CAST(id AS UUID) FROM (VALUES (:id1), (:id2), (:id3)) as t(id))"),
+        {"id1": ids_to_audit[0], "id2": ids_to_audit[1], "id3": ids_to_audit[2]}
+    )
+    identities = audit_r.mappings().all()
+
+    # 3. Encounters for THIS user
     e_user = await db.execute(
-        text("SELECT id, organization_id, status, created_at FROM encounters WHERE doctor_id = CAST(:id AS UUID)"),
+        text("SELECT id, organization_id, doctor_id, status, created_at FROM encounters WHERE doctor_id = CAST(:id AS UUID)"),
         {"id": user["sub"]}
     )
     my_encounters = e_user.mappings().all()
 
-    # 3. GLOBAL Encounter Check (Are there ANY encounters at all?)
+    # 4. GLOBAL Encounter Check (Are there ANY encounters at all?)
     e_global = await db.execute(text("SELECT id, doctor_id, organization_id, status FROM encounters LIMIT 5"))
     any_encounters = e_global.mappings().all()
 
-    # 4. Patient Check
+    # 5. Patient Check
     p_check = await db.execute(text("SELECT COUNT(*) as count FROM patients WHERE organization_id = CAST(:oid AS UUID)"), {"oid": user["org"]})
     patient_count = p_check.mappings().first()
 
-    # 5. Org Check
+    # 6. Org Check
     o = await db.execute(
         text("SELECT id, name FROM organizations WHERE id = CAST(:id AS UUID)"),
         {"id": user["org"]}
@@ -80,10 +92,20 @@ async def debug_context(
         "token_context": user,
         "db_user_record": db_user,
         "org_record": org_record,
+        "identities_audit": [
+            {
+                "id": str(ident["id"]),
+                "email": ident["email"],
+                "role": ident["role"],
+                "org_id": str(ident["organization_id"])
+            }
+            for ident in identities
+        ],
         "my_encounters_count": len(my_encounters),
         "my_encounters": [
             {
                 "id": str(enc["id"]),
+                "doctor_id": str(enc["doctor_id"]),
                 "organization_id": str(enc["organization_id"]),
                 "status": enc["status"]
             }
