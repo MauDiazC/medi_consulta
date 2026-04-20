@@ -46,7 +46,7 @@ class OrganizationRepository:
         """
         Fetches role-aware statistics for the dashboard.
         Admins see clinic-wide totals.
-        Doctors see their own personal stats and pending clinical tasks.
+        Doctors see their own historical performance and current pending tasks.
         """
         if role == "admin":
             # Global Clinic View
@@ -60,11 +60,21 @@ class OrganizationRepository:
             """
         else:
             # Clinical Staff View (Personal Stats)
-            # pending_signatures logic: count unique encounters where the LATEST note version is not signed.
+            # We count ALL encounters (open or closed) to show historical performance.
             query = """
                 SELECT 
-                    (SELECT COUNT(DISTINCT patient_id) FROM encounters WHERE doctor_id = CAST(:uid AS UUID)) as my_patients,
-                    (SELECT COUNT(*) FROM encounters WHERE doctor_id = CAST(:uid AS UUID)) as my_total_encounters,
+                    (
+                        SELECT COUNT(DISTINCT patient_id) 
+                        FROM encounters 
+                        WHERE doctor_id = CAST(:uid AS UUID) 
+                        AND organization_id = CAST(:oid AS UUID)
+                    ) as my_patients,
+                    (
+                        SELECT COUNT(*) 
+                        FROM encounters 
+                        WHERE doctor_id = CAST(:uid AS UUID) 
+                        AND organization_id = CAST(:oid AS UUID)
+                    ) as my_total_encounters,
                     (
                         SELECT COUNT(DISTINCT encounter_id) 
                         FROM clinical_notes cn1
@@ -76,7 +86,13 @@ class OrganizationRepository:
                             AND cn2.signed_at IS NOT NULL
                         )
                     ) as pending_signatures,
-                    (SELECT COUNT(*) FROM clinical_sessions WHERE user_id = CAST(:uid AS UUID) AND is_active = true) as my_active_sessions,
+                    (
+                        SELECT COUNT(*) 
+                        FROM clinical_sessions 
+                        WHERE user_id = CAST(:uid AS UUID) 
+                        AND is_active = true
+                        AND organization_id = CAST(:oid AS UUID)
+                    ) as my_active_sessions,
                     'personal' as scope
             """
         
