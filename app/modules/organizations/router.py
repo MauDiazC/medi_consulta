@@ -22,11 +22,18 @@ def get_service(db=Depends(get_db)):
 
 @router.get("/dashboard/summary")
 async def get_org_summary(
-    user=Depends(require_role("admin")),
+    user=Depends(get_current_user),
     s=Depends(get_service)
 ):
-    """Admin Dashboard: Get high-level stats for the organization."""
-    return await s.repo.get_summary_stats(user["org"])
+    """
+    Personalized Dashboard Summary.
+    Returns global stats for admins and personal performance for clinical staff.
+    """
+    return await s.repo.get_summary_stats(
+        org_id=user["org"],
+        role=user["role"],
+        user_id=user["sub"]
+    )
 
 @router.post("")
 async def create_org(
