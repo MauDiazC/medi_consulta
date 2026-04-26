@@ -142,3 +142,12 @@ class AppointmentService:
             "status": appointment.status,
             "patient_id": str(patient.id)
         })
+
+    async def list_by_org(
+        self, 
+        org_id: str, 
+        status: str | None = None, 
+        start_date: datetime | None = None, 
+        end_date: datetime | None = None
+    ):
+        return await self.repo.list_by_org(org_id, status, start_date, end_date)

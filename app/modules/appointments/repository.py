@@ -16,8 +16,25 @@ class AppointmentRepository:
     async def get(self, appointment_id: str):
         return await self.db.get(Appointment, appointment_id)
 
-    async def list_by_org(self, org_id: str):
-        stmt = select(Appointment).where(Appointment.organization_id == org_id).order_by(Appointment.scheduled_at.asc())
+    async def list_by_org(
+        self, 
+        org_id: str, 
+        status: str | None = None, 
+        start_date: datetime | None = None, 
+        end_date: datetime | None = None
+    ):
+        stmt = select(Appointment).where(Appointment.organization_id == org_id)
+        
+        if status:
+            stmt = stmt.where(Appointment.status == status)
+        
+        if start_date:
+            stmt = stmt.where(Appointment.scheduled_at >= start_date)
+            
+        if end_date:
+            stmt = stmt.where(Appointment.scheduled_at <= end_date)
+
+        stmt = stmt.order_by(Appointment.scheduled_at.asc())
         result = await self.db.execute(stmt)
         return result.scalars().all()
 

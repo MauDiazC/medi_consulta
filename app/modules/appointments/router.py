@@ -1,4 +1,6 @@
 import logging
+from datetime import datetime, timezone, time
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
@@ -54,11 +56,23 @@ async def attend_appointment(
 
 @router.get("/", response_model=list[AppointmentRead])
 async def list_appointments(
+    status: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
     user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    service: AppointmentService = Depends(get_service)
 ):
-    repo = AppointmentRepository(db)
-    return await repo.list_by_org(user["org"])
+    """
+    Lista las citas de la organización. Permite filtrar por estatus y rango de fechas.
+    Si no se provee rango de fechas, por defecto muestra las de hoy.
+    """
+    # Si no hay fechas, definimos el rango de "hoy" (00:00:00 a 23:59:59)
+    if not start_date and not end_date:
+        today = datetime.now(timezone.utc).date()
+        start_date = datetime.combine(today, time.min).replace(tzinfo=timezone.utc)
+        end_date = datetime.combine(today, time.max).replace(tzinfo=timezone.utc)
+    
+    return await service.list_by_org(user["org"], status, start_date, end_date)
 
 # --- Meta Cloud API Webhooks ---
 
