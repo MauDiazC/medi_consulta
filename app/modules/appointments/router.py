@@ -17,7 +17,7 @@ router = APIRouter(prefix="/appointments", tags=["appointments"])
 def get_service(db: AsyncSession = Depends(get_db)):
     return AppointmentService(AppointmentRepository(db))
 
-@router.post("/", response_model=AppointmentRead)
+@router.post("", response_model=AppointmentRead)
 async def schedule_appointment(
     payload: AppointmentCreate,
     user=Depends(get_current_user),
@@ -54,7 +54,7 @@ async def attend_appointment(
         raise HTTPException(404, "Appointment not found")
     return updated
 
-@router.get("/", response_model=list[AppointmentRead])
+@router.get("", response_model=list[AppointmentRead])
 async def list_appointments(
     status: Optional[str] = None,
     start_date: Optional[datetime] = None,
