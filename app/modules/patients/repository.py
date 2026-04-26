@@ -12,9 +12,12 @@ class PatientRepository:
                 INSERT INTO patients(
                     first_name, last_name, phone_number, email, 
                     birth_date, sex,
-                    organization_id, is_active
+                    organization_id, is_active,
+                    emergency_contact_name, emergency_contact_phone,
+                    emergency_contact_address, emergency_contact_relationship,
+                    emergency_contact_email
                 )
-                VALUES(:f, :l, :p, :e, :b, :s, CAST(:o AS UUID), true)
+                VALUES(:f, :l, :p, :e, :b, :s, CAST(:o AS UUID), true, :ecn, :ecp, :eca, :ecr, :ece)
                 RETURNING *
             """),
             {
@@ -24,7 +27,12 @@ class PatientRepository:
                 "e": payload.email,
                 "b": payload.birth_date,
                 "s": payload.sex,
-                "o": org
+                "o": org,
+                "ecn": payload.emergency_contact_name,
+                "ecp": payload.emergency_contact_phone,
+                "eca": payload.emergency_contact_address,
+                "ecr": payload.emergency_contact_relationship,
+                "ece": payload.emergency_contact_email
             },
         )
         await self.db.commit()
@@ -63,7 +71,12 @@ class PatientRepository:
                     phone_number = COALESCE(:p, phone_number),
                     email      = COALESCE(:e, email),
                     birth_date = COALESCE(:b, birth_date),
-                    sex        = COALESCE(:s, sex)
+                    sex        = COALESCE(:s, sex),
+                    emergency_contact_name = COALESCE(:ecn, emergency_contact_name),
+                    emergency_contact_phone = COALESCE(:ecp, emergency_contact_phone),
+                    emergency_contact_address = COALESCE(:eca, emergency_contact_address),
+                    emergency_contact_relationship = COALESCE(:ecr, emergency_contact_relationship),
+                    emergency_contact_email = COALESCE(:ece, emergency_contact_email)
                 WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)
                 RETURNING *
             """),
@@ -75,7 +88,12 @@ class PatientRepository:
                 "p": payload.phone_number,
                 "e": payload.email,
                 "b": payload.birth_date,
-                "s": payload.sex
+                "s": payload.sex,
+                "ecn": payload.emergency_contact_name,
+                "ecp": payload.emergency_contact_phone,
+                "eca": payload.emergency_contact_address,
+                "ecr": payload.emergency_contact_relationship,
+                "ece": payload.emergency_contact_email
             },
         )
         await self.db.commit()

@@ -37,6 +37,21 @@ async def confirm_appointment(
         raise HTTPException(404, "Appointment not found")
     return updated
 
+@router.patch("/{appointment_id}/attend", response_model=AppointmentRead)
+async def attend_appointment(
+    appointment_id: str,
+    user=Depends(get_current_user),
+    service: AppointmentService = Depends(get_service)
+):
+    """
+    Marca la cita como atendida (cerrada). 
+    Este es el paso previo a la toma de signos (triage).
+    """
+    updated = await service.update_status(appointment_id, "attended")
+    if not updated:
+        raise HTTPException(404, "Appointment not found")
+    return updated
+
 @router.get("/", response_model=list[AppointmentRead])
 async def list_appointments(
     user=Depends(get_current_user),

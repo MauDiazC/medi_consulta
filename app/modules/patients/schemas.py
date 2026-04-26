@@ -10,6 +10,12 @@ class PatientCreate(BaseModel):
     email: Optional[EmailStr] = None
     birth_date: Optional[date] = None
     sex: Optional[str] = None # M, F, O
+    # Emergency Contact
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    emergency_contact_address: Optional[str] = None
+    emergency_contact_relationship: Optional[str] = None
+    emergency_contact_email: Optional[EmailStr] = None
 
 
 class PatientUpdate(BaseModel):
@@ -19,6 +25,12 @@ class PatientUpdate(BaseModel):
     email: Optional[EmailStr] = None
     birth_date: Optional[date] = None
     sex: Optional[str] = None
+    # Emergency Contact
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    emergency_contact_address: Optional[str] = None
+    emergency_contact_relationship: Optional[str] = None
+    emergency_contact_email: Optional[EmailStr] = None
 
 
 class PatientDTO(BaseModel):
@@ -29,3 +41,9 @@ class PatientDTO(BaseModel):
     email: Optional[str] = None
     organization_id: str
     is_active: bool
+    # Emergency Contact
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    emergency_contact_address: Optional[str] = None
+    emergency_contact_relationship: Optional[str] = None
+    emergency_contact_email: Optional[str] = None

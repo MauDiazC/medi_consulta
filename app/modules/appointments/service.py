@@ -68,6 +68,22 @@ class AppointmentService:
         
         return await self.repo.update(appointment)
 
+    async def update_status(self, appointment_id: str, status: str):
+        appointment = await self.repo.get(appointment_id)
+        if not appointment: return None
+        
+        appointment.status = status
+        updated = await self.repo.update(appointment)
+        
+        # Publicar evento para actualizar el dashboard
+        await publish_event("appointment.updated", {
+            "appointment_id": str(appointment.id),
+            "status": appointment.status,
+            "patient_id": str(appointment.patient_id)
+        })
+        
+        return updated
+
     async def process_pending_reminders(self):
         """
         Logic for the background worker.
