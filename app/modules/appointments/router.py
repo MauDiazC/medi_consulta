@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.permissions import require_role
 from app.core.config import settings
 from .schemas import AppointmentCreate, AppointmentRead, AppointmentUpdate
 from .service import AppointmentService
@@ -20,7 +21,7 @@ def get_service(db: AsyncSession = Depends(get_db)):
 @router.post("", response_model=AppointmentRead)
 async def schedule_appointment(
     payload: AppointmentCreate,
-    user=Depends(get_current_user),
+    user=Depends(require_role("doctor", "nurse", "receptionist")),
     service: AppointmentService = Depends(get_service)
 ):
     return await service.schedule(payload, user["org"])
@@ -42,7 +43,7 @@ async def confirm_appointment(
 @router.patch("/{appointment_id}/attend", response_model=AppointmentRead)
 async def attend_appointment(
     appointment_id: str,
-    user=Depends(get_current_user),
+    user=Depends(require_role("doctor", "nurse", "receptionist")),
     service: AppointmentService = Depends(get_service)
 ):
     """
@@ -59,7 +60,7 @@ async def list_appointments(
     status: Optional[str] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    user=Depends(get_current_user),
+    user=Depends(require_role("doctor", "nurse", "receptionist")),
     service: AppointmentService = Depends(get_service)
 ):
     """
