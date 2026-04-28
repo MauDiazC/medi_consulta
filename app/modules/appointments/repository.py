@@ -21,7 +21,8 @@ class AppointmentRepository:
         org_id: str, 
         status: str | None = None, 
         start_date: datetime | None = None, 
-        end_date: datetime | None = None
+        end_date: datetime | None = None,
+        patient_id: str | None = None
     ):
         stmt = select(Appointment).where(Appointment.organization_id == org_id)
         
@@ -33,6 +34,9 @@ class AppointmentRepository:
             
         if end_date:
             stmt = stmt.where(Appointment.scheduled_at <= end_date)
+            
+        if patient_id:
+            stmt = stmt.where(Appointment.patient_id == patient_id)
 
         stmt = stmt.order_by(Appointment.scheduled_at.asc())
         result = await self.db.execute(stmt)

@@ -60,20 +60,33 @@ async def list_appointments(
     status: Optional[str] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    patient_id: Optional[str] = None,
     user=Depends(require_role("doctor", "nurse", "receptionist")),
     service: AppointmentService = Depends(get_service)
 ):
     """
-    Lista las citas de la organización. Permite filtrar por estatus y rango de fechas.
-    Si no se provee rango de fechas, por defecto muestra las de hoy.
+    Lista las citas de la organización. Permite filtrar por estatus, rango de fechas y paciente.
+    Si no se provee rango de fechas, por defecto muestra las de hoy (a menos que se especifique un paciente).
     """
-    # Si no hay fechas, definimos el rango de "hoy" (00:00:00 a 23:59:59)
-    if not start_date and not end_date:
+    # Si no hay fechas y NO se está filtrando por paciente, definimos el rango de "hoy"
+    if not start_date and not end_date and not patient_id:
         today = datetime.now(timezone.utc).date()
         start_date = datetime.combine(today, time.min).replace(tzinfo=timezone.utc)
         end_date = datetime.combine(today, time.max).replace(tzinfo=timezone.utc)
     
-    return await service.list_by_org(user["org"], status, start_date, end_date)
+    return await service.list_by_org(user["org"], status, start_date, end_date, patient_id)
+
+
+@router.get("/patient/{patient_id}", response_model=list[AppointmentRead])
+async def list_appointments_by_patient(
+    patient_id: str,
+    user=Depends(require_role("doctor", "nurse", "receptionist")),
+    service: AppointmentService = Depends(get_service)
+):
+    """
+    Obtiene todo el historial de citas (pasado y futuro) de un paciente específico.
+    """
+    return await service.list_by_org(user["org"], patient_id=patient_id)
 
 # --- Meta Cloud API Webhooks ---
 

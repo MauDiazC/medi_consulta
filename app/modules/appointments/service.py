@@ -148,6 +148,7 @@ class AppointmentService:
         org_id: str, 
         status: str | None = None, 
         start_date: datetime | None = None, 
-        end_date: datetime | None = None
+        end_date: datetime | None = None,
+        patient_id: str | None = None
     ):
-        return await self.repo.list_by_org(org_id, status, start_date, end_date)
+        return await self.repo.list_by_org(org_id, status, start_date, end_date, patient_id)
