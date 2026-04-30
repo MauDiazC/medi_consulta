@@ -22,7 +22,7 @@ class UserRepository:
         # Commit removed for service-level atomicity
         return r.mappings().first()
 
-    async def list(self, org, limit, offset):
+    async def list_all(self, org, limit, offset):
         r = await self.db.execute(
             text("""
                 SELECT *

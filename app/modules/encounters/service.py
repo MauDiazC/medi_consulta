@@ -15,8 +15,8 @@ class EncounterService:
             raise HTTPException(404, "Encounter not found")
         return encounter
 
-    async def list(self, org, limit, offset, doctor_ids=None):
-        return await self.repo.list(org, limit, offset, doctor_ids)
+    async def list_all(self, org, limit, offset, doctor_ids=None):
+        return await self.repo.list_all(org, limit, offset, doctor_ids)
 
     async def list_by_patient(self, patient_id, org, limit, offset, doctor_ids=None):
         return await self.repo.list_by_patient(patient_id, org, limit, offset, doctor_ids)

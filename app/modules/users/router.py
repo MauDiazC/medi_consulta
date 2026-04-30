@@ -38,7 +38,7 @@ async def list_users(
     user=Depends(get_current_user),
     s=Depends(get_service),
 ):
-    return await s.list(user["org"], page.limit, page.offset)
+    return await s.list_all(user["org"], page.limit, page.offset)
 
 
 @router.get("/{user_id}")

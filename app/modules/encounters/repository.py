@@ -57,7 +57,7 @@ class EncounterRepository:
         )
         return r.mappings().first()
 
-    async def list(self, org, limit, offset, doctor_ids: list[str] | None = None):
+    async def list_all(self, org, limit, offset, doctor_ids: list[str] | None = None):
         query = """
             SELECT e.*, 
                    p.first_name || ' ' || p.last_name as patient_name,

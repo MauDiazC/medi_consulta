@@ -38,7 +38,7 @@ async def list_encounters(
     s=Depends(get_service),
 ):
     """Lists encounters filtered by authorized doctors."""
-    return await s.list(user["org"], page.limit, page.offset, authorized_doctor_ids)
+    return await s.list_all(user["org"], page.limit, page.offset, authorized_doctor_ids)
 
 
 @router.get("/patient/{patient_id}")

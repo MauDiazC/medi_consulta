@@ -29,8 +29,8 @@ class UserService:
         await self.repo.db.commit()
         return user
 
-    async def list(self, org, limit, offset):
-        return await self.repo.list(org, limit, offset)
+    async def list_all(self, org, limit, offset):
+        return await self.repo.list_all(org, limit, offset)
 
     async def get(self, user_id, org):
         user = await self.repo.get(user_id, org)
