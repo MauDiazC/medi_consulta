@@ -6,7 +6,22 @@ class PatientRepository:
     def __init__(self, db):
         self.db = db
 
+    def _format_mexico_phone(self, phone: str | None) -> str | None:
+        if not phone:
+            return None
+        # Limpiar caracteres no numéricos
+        clean_phone = "".join(filter(str.isdigit, phone))
+        # Si tiene 10 dígitos, añadir 52
+        if len(clean_phone) == 10:
+            return f"52{clean_phone}"
+        # Si ya tiene 12 y empieza con 52, dejarlo así
+        if len(clean_phone) == 12 and clean_phone.startswith("52"):
+            return clean_phone
+        return clean_phone
+
     async def create(self, payload, org):
+        phone = self._format_mexico_phone(payload.phone_number)
+        
         r = await self.db.execute(
             text("""
                 INSERT INTO patients(
@@ -23,13 +38,13 @@ class PatientRepository:
             {
                 "f": payload.first_name, 
                 "l": payload.last_name, 
-                "p": payload.phone_number,
+                "p": phone,
                 "e": payload.email,
                 "b": payload.birth_date,
                 "s": payload.sex,
                 "o": org,
                 "ecn": payload.emergency_contact_name,
-                "ecp": payload.emergency_contact_phone,
+                "ecp": self._format_mexico_phone(payload.emergency_contact_phone),
                 "eca": payload.emergency_contact_address,
                 "ecr": payload.emergency_contact_relationship,
                 "ece": payload.emergency_contact_email
@@ -85,12 +100,12 @@ class PatientRepository:
                 "org": org,
                 "f": payload.first_name,
                 "l": payload.last_name,
-                "p": payload.phone_number,
+                "p": self._format_mexico_phone(payload.phone_number),
                 "e": payload.email,
                 "b": payload.birth_date,
                 "s": payload.sex,
                 "ecn": payload.emergency_contact_name,
-                "ecp": payload.emergency_contact_phone,
+                "ecp": self._format_mexico_phone(payload.emergency_contact_phone),
                 "eca": payload.emergency_contact_address,
                 "ecr": payload.emergency_contact_relationship,
                 "ece": payload.emergency_contact_email
@@ -101,16 +116,25 @@ class PatientRepository:
 
     async def get_by_phone(self, phone: str):
         """
-        Busca un paciente por su número de teléfono (formato internacional).
+        Busca un paciente por su número de teléfono. 
+        Maneja formatos con y sin prefijo 52.
         """
+        clean_phone = "".join(filter(str.isdigit, phone))
+        
+        # Generar variantes para la búsqueda
+        ten_digits = clean_phone[-10:] if len(clean_phone) >= 10 else clean_phone
+        with_52 = f"52{ten_digits}"
+        
         r = await self.db.execute(
             text("""
                 SELECT *
                 FROM patients
-                WHERE phone_number = :p OR phone_number = :p_with_plus
+                WHERE phone_number = :p1 
+                   OR phone_number = :p2 
+                   OR phone_number = :p3
                 LIMIT 1
             """),
-            {"p": phone.replace("+", ""), "p_with_plus": f"+{phone.replace('+', '')}"},
+            {"p1": ten_digits, "p2": with_52, "p3": f"+{with_52}"},
         )
         return r.mappings().first()
 

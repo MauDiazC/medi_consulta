@@ -16,6 +16,14 @@ class AppointmentService:
         self.repo = repo
         self.notifier = AppointmentNotifier()
 
+    def _format_mexico_phone(self, phone: str | None) -> str | None:
+        if not phone:
+            return None
+        clean_phone = "".join(filter(str.isdigit, phone))
+        if len(clean_phone) == 10:
+            return f"52{clean_phone}"
+        return clean_phone
+
     async def schedule(self, payload, org_id: str):
         # --- VALIDATIONS ---
         
@@ -33,7 +41,6 @@ class AppointmentService:
             raise HTTPException(400, "Cita fuera del horario laboral (08:00 - 20:00)")
             
         # 3. Check 40-minute slot alignment
-        # Calculate minutes since 08:00
         minutes_since_start = (dt.hour - 8) * 60 + dt.minute
         if minutes_since_start % 40 != 0:
             raise HTTPException(400, "La hora de la cita debe estar alineada a bloques de 40 minutos")
@@ -42,6 +49,11 @@ class AppointmentService:
         is_occupied = await self.repo.check_overlap(str(payload.doctor_id), dt)
         if is_occupied:
             raise HTTPException(409, "El horario seleccionado ya está ocupado por otra cita")
+
+        # --- PRE-PROCESSING ---
+        # Si hay un teléfono en metadata, formatearlo con 52
+        if payload.metadata_json and "phone" in payload.metadata_json:
+            payload.metadata_json["phone"] = self._format_mexico_phone(payload.metadata_json["phone"])
 
         # --- EXECUTION ---
         appointment = Appointment(
@@ -202,10 +214,8 @@ class AppointmentService:
             slot_end = current_time + slot_duration
             
             # Check if any appointment overlaps with this slot
-            # For simplicity, we check if an appointment starts within the slot
             occupied_by = None
             for appt in existing_appts:
-                # Normalizar a UTC para comparación
                 appt_time = appt.scheduled_at
                 if appt_time.tzinfo is None:
                     appt_time = appt_time.replace(tzinfo=timezone.utc)
