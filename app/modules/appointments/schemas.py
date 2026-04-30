@@ -27,3 +27,9 @@ class AppointmentRead(AppointmentBase):
     patient_last_name: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+class SlotRead(BaseModel):
+    start_time: str
+    end_time: str
+    status: str # "free" or "occupied"
+    appointment_id: UUID | None = None

@@ -1,9 +1,10 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, timedelta, time
 from uuid import UUID
 from .models import Appointment
 from .repository import AppointmentRepository
 from .notifier import AppointmentNotifier
+from .schemas import SlotRead
 from app.modules.patients.repository import PatientRepository
 from app.core.events import publish_event
 
@@ -152,3 +153,38 @@ class AppointmentService:
         patient_id: str | None = None
     ):
         return await self.repo.list_by_org(org_id, status, start_date, end_date, patient_id)
+
+    async def get_availability(self, org_id: str, doctor_id: str, target_date: date) -> list[SlotRead]:
+        """
+        Generates 40-minute slots from 08:00 to 20:00 and checks availability.
+        """
+        existing_appts = await self.repo.get_doctor_appointments_by_date(org_id, doctor_id, target_date)
+        
+        slots = []
+        current_time = datetime.combine(target_date, time(8, 0)).replace(tzinfo=timezone.utc)
+        end_work_time = datetime.combine(target_date, time(20, 0)).replace(tzinfo=timezone.utc)
+        
+        slot_duration = timedelta(minutes=40)
+        
+        while current_time + slot_duration <= end_work_time:
+            slot_start = current_time
+            slot_end = current_time + slot_duration
+            
+            # Check if any appointment overlaps with this slot
+            # For simplicity, we check if an appointment starts within the slot
+            occupied_by = None
+            for appt in existing_appts:
+                if slot_start <= appt.scheduled_at < slot_end:
+                    occupied_by = appt.id
+                    break
+            
+            slots.append(SlotRead(
+                start_time=slot_start.strftime("%H:%M"),
+                end_time=slot_end.strftime("%H:%M"),
+                status="occupied" if occupied_by else "free",
+                appointment_id=occupied_by
+            ))
+            
+            current_time = slot_end
+            
+        return slots

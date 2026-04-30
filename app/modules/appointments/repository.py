@@ -1,6 +1,6 @@
 from sqlalchemy import select, and_, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from .models import Appointment
 
 class AppointmentRepository:
@@ -77,6 +77,25 @@ class AppointmentRepository:
         
         result = await self.db.execute(text(query), params)
         return result.mappings().all()
+
+    async def get_doctor_appointments_by_date(self, org_id: str, doctor_id: str, target_date: date):
+        """
+        Fetches all non-cancelled appointments for a doctor on a specific date.
+        """
+        start_dt = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+        end_dt = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+        
+        stmt = select(Appointment).where(
+            and_(
+                Appointment.organization_id == org_id,
+                Appointment.doctor_id == doctor_id,
+                Appointment.scheduled_at >= start_dt,
+                Appointment.scheduled_at <= end_dt,
+                Appointment.status != "cancelled"
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
 
     async def update(self, appointment: Appointment):
         await self.db.commit()
