@@ -57,44 +57,51 @@ class EncounterRepository:
         )
         return r.mappings().first()
 
-    async def list(self, org, limit, offset):
-        r = await self.db.execute(
-            text("""
-                SELECT e.*, 
-                       p.first_name || ' ' || p.last_name as patient_name,
-                       u.full_name as doctor_name
-                FROM encounters e
-                JOIN patients p ON e.patient_id = p.id
-                JOIN users u ON e.doctor_id = u.id
-                WHERE e.organization_id = CAST(:org AS UUID)
-                ORDER BY e.created_at DESC
-                LIMIT :limit OFFSET :offset
-            """),
-            {"org": org, "limit": limit, "offset": offset},
-        )
+    async def list(self, org, limit, offset, doctor_ids: list[str] | None = None):
+        query = """
+            SELECT e.*, 
+                   p.first_name || ' ' || p.last_name as patient_name,
+                   u.full_name as doctor_name
+            FROM encounters e
+            JOIN patients p ON e.patient_id = p.id
+            JOIN users u ON e.doctor_id = u.id
+            WHERE e.organization_id = CAST(:org AS UUID)
+        """
+        params = {"org": org, "limit": limit, "offset": offset}
+        
+        if doctor_ids is not None:
+            if not doctor_ids:
+                return []
+            query += " AND e.doctor_id = ANY(:doctor_ids)"
+            params["doctor_ids"] = doctor_ids
+
+        query += " ORDER BY e.created_at DESC LIMIT :limit OFFSET :offset"
+        
+        r = await self.db.execute(text(query), params)
         return r.mappings().all()
 
-    async def list_by_patient(self, patient_id, org, limit, offset):
-        r = await self.db.execute(
-            text("""
-                SELECT e.*, 
-                       p.first_name || ' ' || p.last_name as patient_name,
-                       u.full_name as doctor_name
-                FROM encounters e
-                JOIN patients p ON e.patient_id = p.id
-                JOIN users u ON e.doctor_id = u.id
-                WHERE e.patient_id = CAST(:patient AS UUID)
-                AND e.organization_id = CAST(:org AS UUID)
-                ORDER BY e.created_at DESC
-                LIMIT :limit OFFSET :offset
-            """),
-            {
-                "patient": patient_id,
-                "org": org,
-                "limit": limit,
-                "offset": offset,
-            },
-        )
+    async def list_by_patient(self, patient_id, org, limit, offset, doctor_ids: list[str] | None = None):
+        query = """
+            SELECT e.*, 
+                   p.first_name || ' ' || p.last_name as patient_name,
+                   u.full_name as doctor_name
+            FROM encounters e
+            JOIN patients p ON e.patient_id = p.id
+            JOIN users u ON e.doctor_id = u.id
+            WHERE e.patient_id = CAST(:patient AS UUID)
+            AND e.organization_id = CAST(:org AS UUID)
+        """
+        params = {"patient": patient_id, "org": org, "limit": limit, "offset": offset}
+
+        if doctor_ids is not None:
+            if not doctor_ids:
+                return []
+            query += " AND e.doctor_id = ANY(:doctor_ids)"
+            params["doctor_ids"] = doctor_ids
+
+        query += " ORDER BY e.created_at DESC LIMIT :limit OFFSET :offset"
+
+        r = await self.db.execute(text(query), params)
         return r.mappings().all()
 
     async def list_by_doctor(self, doctor_id, org, limit, offset):
@@ -120,27 +127,28 @@ class EncounterRepository:
         )
         return r.mappings().all()
 
-    async def list_by_session(self, session_id, org, limit, offset):
-        r = await self.db.execute(
-            text("""
-                SELECT e.*, 
-                       p.first_name || ' ' || p.last_name as patient_name,
-                       u.full_name as doctor_name
-                FROM encounters e
-                JOIN patients p ON e.patient_id = p.id
-                JOIN users u ON e.doctor_id = u.id
-                WHERE e.clinical_session_id = CAST(:session AS UUID)
-                AND e.organization_id = CAST(:org AS UUID)
-                ORDER BY e.created_at DESC
-                LIMIT :limit OFFSET :offset
-            """),
-            {
-                "session": session_id,
-                "org": org,
-                "limit": limit,
-                "offset": offset,
-            },
-        )
+    async def list_by_session(self, session_id, org, limit, offset, doctor_ids: list[str] | None = None):
+        query = """
+            SELECT e.*, 
+                   p.first_name || ' ' || p.last_name as patient_name,
+                   u.full_name as doctor_name
+            FROM encounters e
+            JOIN patients p ON e.patient_id = p.id
+            JOIN users u ON e.doctor_id = u.id
+            WHERE e.clinical_session_id = CAST(:session AS UUID)
+            AND e.organization_id = CAST(:org AS UUID)
+        """
+        params = {"session": session_id, "org": org, "limit": limit, "offset": offset}
+
+        if doctor_ids is not None:
+            if not doctor_ids:
+                return []
+            query += " AND e.doctor_id = ANY(:doctor_ids)"
+            params["doctor_ids"] = doctor_ids
+
+        query += " ORDER BY e.created_at DESC LIMIT :limit OFFSET :offset"
+
+        r = await self.db.execute(text(query), params)
         return r.mappings().all()
 
     async def update(self, encounter_id, org, payload):

@@ -55,3 +55,28 @@ class UserService:
         await self.repo.activate(user_id, org)
         await self.repo.db.commit()
         return {"status": "activated"}
+
+    # --- Staff Assignments ---
+
+    async def assign_doctor(self, staff_id: str, doctor_id: str, org_id: str):
+        # Verify both users exist in the same organization
+        staff = await self.repo.get(staff_id, org_id)
+        doctor = await self.repo.get(doctor_id, org_id)
+        
+        if not staff or not doctor:
+            raise HTTPException(404, "Staff or Doctor not found in this organization")
+            
+        if doctor["role"] != "doctor":
+            raise HTTPException(400, "The target user for assignment must be a doctor")
+            
+        await self.repo.assign_doctor(staff_id, doctor_id)
+        return {"status": "assigned"}
+
+    async def remove_assignment(self, staff_id: str, doctor_id: str, org_id: str):
+        await self.repo.remove_assignment(staff_id, doctor_id)
+        return {"status": "removed"}
+
+    async def get_assigned_doctors(self, staff_id: str, org_id: str):
+        # Verify staff exists
+        await self.get(staff_id, org_id)
+        return await self.repo.get_assigned_doctors(staff_id)

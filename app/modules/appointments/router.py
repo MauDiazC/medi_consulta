@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_authorized_doctor_ids
 from app.core.permissions import require_role
 from app.core.config import settings
 from .schemas import AppointmentCreate, AppointmentRead, AppointmentUpdate, SlotRead
@@ -22,8 +22,13 @@ def get_service(db: AsyncSession = Depends(get_db)):
 async def schedule_appointment(
     payload: AppointmentCreate,
     user=Depends(require_role("doctor", "nurse", "receptionist", "assistant")),
+    authorized_doctor_ids=Depends(get_authorized_doctor_ids),
     service: AppointmentService = Depends(get_service)
 ):
+    # Security: Ensure the user is authorized to schedule for this doctor
+    if str(payload.doctor_id) not in authorized_doctor_ids:
+        raise HTTPException(403, "Not authorized to schedule appointments for this doctor")
+        
     return await service.schedule(payload, user["org"])
 
 @router.patch("/{appointment_id}/confirm", response_model=AppointmentRead)
@@ -61,12 +66,12 @@ async def list_appointments(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     patient_id: Optional[str] = None,
-    user=Depends(require_role("doctor", "nurse", "receptionist", "assistant")),
+    user=Depends(require_role("doctor", "nurse", "receptionist", "assistant", "admin")),
+    authorized_doctor_ids=Depends(get_authorized_doctor_ids),
     service: AppointmentService = Depends(get_service)
 ):
     """
-    Lista las citas de la organización. Permite filtrar por estatus, rango de fechas y paciente.
-    Si no se provee rango de fechas, por defecto muestra las de hoy (a menos que se especifique un paciente).
+    Lista las citas de la organización. Filtra por doctores autorizados.
     """
     # Si no hay fechas y NO se está filtrando por paciente, definimos el rango de "hoy"
     if not start_date and not end_date and not patient_id:
@@ -74,31 +79,35 @@ async def list_appointments(
         start_date = datetime.combine(today, time.min).replace(tzinfo=timezone.utc)
         end_date = datetime.combine(today, time.max).replace(tzinfo=timezone.utc)
     
-    return await service.list_by_org(user["org"], status, start_date, end_date, patient_id)
+    return await service.list_by_org(user["org"], status, start_date, end_date, patient_id, authorized_doctor_ids)
 
 
 @router.get("/patient/{patient_id}", response_model=list[AppointmentRead])
 async def list_appointments_by_patient(
     patient_id: str,
-    user=Depends(require_role("doctor", "nurse", "receptionist", "assistant")),
+    user=Depends(require_role("doctor", "nurse", "receptionist", "assistant", "admin")),
+    authorized_doctor_ids=Depends(get_authorized_doctor_ids),
     service: AppointmentService = Depends(get_service)
 ):
     """
-    Obtiene todo el historial de citas (pasado y futuro) de un paciente específico.
+    Obtiene todo el historial de citas de un paciente específico, filtrado por doctores autorizados.
     """
-    return await service.list_by_org(user["org"], patient_id=patient_id)
+    return await service.list_by_org(user["org"], patient_id=patient_id, doctor_ids=authorized_doctor_ids)
 
 @router.get("/availability", response_model=list[SlotRead])
 async def get_availability(
     doctor_id: str,
     target_date: Optional[date_type] = None,
-    user=Depends(require_role("doctor", "nurse", "receptionist", "assistant")),
+    user=Depends(require_role("doctor", "nurse", "receptionist", "assistant", "admin")),
+    authorized_doctor_ids=Depends(get_authorized_doctor_ids),
     service: AppointmentService = Depends(get_service)
 ):
     """
     Returns 40-minute availability slots for a specific doctor on a given date.
-    Defaults to today if no date is provided.
     """
+    if doctor_id not in authorized_doctor_ids:
+        raise HTTPException(403, "Not authorized to view availability for this doctor")
+
     if not target_date:
         target_date = datetime.now(timezone.utc).date()
         

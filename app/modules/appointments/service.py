@@ -193,9 +193,10 @@ class AppointmentService:
         status: str | None = None, 
         start_date: datetime | None = None, 
         end_date: datetime | None = None,
-        patient_id: str | None = None
+        patient_id: str | None = None,
+        doctor_ids: list[str] | None = None
     ):
-        return await self.repo.list_by_org(org_id, status, start_date, end_date, patient_id)
+        return await self.repo.list_by_org(org_id, status, start_date, end_date, patient_id, doctor_ids)
 
     async def get_availability(self, org_id: str, doctor_id: str, target_date: date) -> list[SlotRead]:
         """

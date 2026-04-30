@@ -41,10 +41,12 @@ class AppointmentRepository:
         status: str | None = None, 
         start_date: datetime | None = None, 
         end_date: datetime | None = None,
-        patient_id: str | None = None
+        patient_id: str | None = None,
+        doctor_ids: list[str] | None = None
     ):
         """
         Lists appointments for an organization with patient names.
+        Optionally filters by authorized doctor IDs.
         """
         query = """
             SELECT 
@@ -72,6 +74,12 @@ class AppointmentRepository:
         if patient_id:
             query += " AND a.patient_id = :patient_id"
             params["patient_id"] = patient_id
+
+        if doctor_ids is not None:
+            if not doctor_ids:
+                return [] # No access to any doctor
+            query += " AND a.doctor_id = ANY(:doctor_ids)"
+            params["doctor_ids"] = doctor_ids
 
         query += " ORDER BY a.scheduled_at ASC"
         

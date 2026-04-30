@@ -106,3 +106,37 @@ class UserRepository:
             {"email": email.lower().strip()}
         )
         await self.db.commit()
+
+    # --- Staff Assignments ---
+
+    async def assign_doctor(self, staff_id: str, doctor_id: str):
+        await self.db.execute(
+            text("""
+                INSERT INTO staff_assignments(staff_id, doctor_id)
+                VALUES(CAST(:sid AS UUID), CAST(:did AS UUID))
+                ON CONFLICT DO NOTHING
+            """),
+            {"sid": staff_id, "did": doctor_id}
+        )
+        await self.db.commit()
+
+    async def remove_assignment(self, staff_id: str, doctor_id: str):
+        await self.db.execute(
+            text("""
+                DELETE FROM staff_assignments
+                WHERE staff_id=CAST(:sid AS UUID) AND doctor_id=CAST(:did AS UUID)
+            """),
+            {"sid": staff_id, "did": doctor_id}
+        )
+        await self.db.commit()
+
+    async def get_assigned_doctors(self, staff_id: str) -> list[str]:
+        result = await self.db.execute(
+            text("""
+                SELECT doctor_id
+                FROM staff_assignments
+                WHERE staff_id=CAST(:sid AS UUID)
+            """),
+            {"sid": staff_id}
+        )
+        return [str(row[0]) for row in result.all()]

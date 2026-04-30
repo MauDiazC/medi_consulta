@@ -94,3 +94,34 @@ async def hard_delete_user(
     target_user = await s.get(user_id, user["org"])
     await s.repo.hard_delete_by_email(target_user["email"])
     return {"status": "purged", "email": target_user["email"]}
+
+# --- Staff Assignments ---
+
+@router.post("/{staff_id}/assignments/{doctor_id}")
+async def assign_doctor(
+    staff_id: str,
+    doctor_id: str,
+    user=Depends(require_role("admin")),
+    s=Depends(get_service)
+):
+    """Assigns a doctor to a staff member (assistant, nurse, admin)."""
+    return await s.assign_doctor(staff_id, doctor_id, user["org"])
+
+@router.delete("/{staff_id}/assignments/{doctor_id}")
+async def remove_assignment(
+    staff_id: str,
+    doctor_id: str,
+    user=Depends(require_role("admin")),
+    s=Depends(get_service)
+):
+    """Removes a doctor assignment from a staff member."""
+    return await s.remove_assignment(staff_id, doctor_id, user["org"])
+
+@router.get("/{staff_id}/assignments")
+async def list_assignments(
+    staff_id: str,
+    user=Depends(require_role("admin")),
+    s=Depends(get_service)
+):
+    """Lists all doctors assigned to a staff member."""
+    return await s.get_assigned_doctors(staff_id, user["org"])
