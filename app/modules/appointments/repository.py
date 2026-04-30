@@ -13,8 +13,27 @@ class AppointmentRepository:
         await self.db.refresh(appointment)
         return appointment
 
-    async def get(self, appointment_id: str):
+    async def get_by_id(self, appointment_id: str) -> Appointment | None:
+        """
+        Fetches the ORM object for mutations.
+        """
         return await self.db.get(Appointment, appointment_id)
+
+    async def get(self, appointment_id: str):
+        """
+        Fetches an appointment by ID with patient names for responses.
+        """
+        stmt = text("""
+            SELECT 
+                a.*, 
+                p.first_name as patient_first_name,
+                p.last_name as patient_last_name
+            FROM appointments a
+            LEFT JOIN patients p ON a.patient_id = p.id
+            WHERE a.id = :aid
+        """)
+        result = await self.db.execute(stmt, {"aid": appointment_id})
+        return result.mappings().first()
 
     async def list_by_org(
         self, 
@@ -24,23 +43,40 @@ class AppointmentRepository:
         end_date: datetime | None = None,
         patient_id: str | None = None
     ):
-        stmt = select(Appointment).where(Appointment.organization_id == org_id)
-        
+        """
+        Lists appointments for an organization with patient names.
+        """
+        query = """
+            SELECT 
+                a.*, 
+                p.first_name as patient_first_name,
+                p.last_name as patient_last_name
+            FROM appointments a
+            LEFT JOIN patients p ON a.patient_id = p.id
+            WHERE a.organization_id = :org_id
+        """
+        params = {"org_id": org_id}
+
         if status:
-            stmt = stmt.where(Appointment.status == status)
+            query += " AND a.status = :status"
+            params["status"] = status
         
         if start_date:
-            stmt = stmt.where(Appointment.scheduled_at >= start_date)
+            query += " AND a.scheduled_at >= :start_date"
+            params["start_date"] = start_date
             
         if end_date:
-            stmt = stmt.where(Appointment.scheduled_at <= end_date)
+            query += " AND a.scheduled_at <= :end_date"
+            params["end_date"] = end_date
             
         if patient_id:
-            stmt = stmt.where(Appointment.patient_id == patient_id)
+            query += " AND a.patient_id = :patient_id"
+            params["patient_id"] = patient_id
 
-        stmt = stmt.order_by(Appointment.scheduled_at.asc())
-        result = await self.db.execute(stmt)
-        return result.scalars().all()
+        query += " ORDER BY a.scheduled_at ASC"
+        
+        result = await self.db.execute(text(query), params)
+        return result.mappings().all()
 
     async def update(self, appointment: Appointment):
         await self.db.commit()
@@ -67,7 +103,7 @@ class AppointmentRepository:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
-    async def get_latest_for_patient(self, patient_id: str):
+    async def get_latest_for_patient(self, patient_id: str) -> Appointment | None:
         """
         Busca la cita más reciente (ya sea futura o pasada cercana) para un paciente.
         """

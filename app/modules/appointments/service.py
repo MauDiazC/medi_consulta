@@ -59,7 +59,7 @@ class AppointmentService:
         await self.notifier.send_whatsapp(phone, ai_msg, appointment_id)
 
     async def confirm(self, appointment_id: str, confirmed: bool):
-        appointment = await self.repo.get(appointment_id)
+        appointment = await self.repo.get_by_id(appointment_id)
         if not appointment: return None
         
         appointment.patient_confirmation = confirmed
@@ -69,7 +69,7 @@ class AppointmentService:
         return await self.repo.update(appointment)
 
     async def update_status(self, appointment_id: str, status: str):
-        appointment = await self.repo.get(appointment_id)
+        appointment = await self.repo.get_by_id(appointment_id)
         if not appointment: return None
         
         appointment.status = status

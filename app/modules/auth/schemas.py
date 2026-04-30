@@ -36,6 +36,7 @@ class TokenResponse(BaseModel):
     organization_id: Optional[str] = None
     role: str
     email: str
+    full_name: str
 
 
 class TokenExchangeRequest(BaseModel):

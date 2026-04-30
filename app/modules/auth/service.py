@@ -51,7 +51,8 @@ class AuthService:
             "user_id": str(user["id"]),
             "organization_id": str(user["organization_id"]),
             "role": user["role"],
-            "email": user["email"]
+            "email": user["email"],
+            "full_name": user["full_name"]
         }
 
     async def register(self, email: str, password: str, full_name: str, role: str):
@@ -87,7 +88,8 @@ class AuthService:
             "user_id": str(user["id"]),
             "organization_id": org_id,
             "role": user["role"],
-            "email": user["email"]
+            "email": user["email"],
+            "full_name": user["full_name"]
         }
 
     async def login(self, email: str, password: str, client_info: dict = None):
@@ -120,6 +122,13 @@ class AuthService:
         # Preserve null if organization_id is missing (Bootstrap case)
         org_id = str(user["organization_id"]) if user["organization_id"] else None
 
+        # Logic for Task 1: If assistant, try to get doctor's name
+        full_name = user["full_name"]
+        if user["role"] == "assistant" and org_id:
+            doc_name = await self.repo.get_doctor_name_by_org(org_id)
+            if doc_name:
+                full_name = doc_name
+
         token = create_access_token(
             {
                 "sub": str(user["id"]),
@@ -134,7 +143,8 @@ class AuthService:
             "user_id": str(user["id"]),
             "organization_id": org_id,
             "role": user["role"],
-            "email": user["email"]
+            "email": user["email"],
+            "full_name": full_name
         }
 
     async def google_login(self, credential: str, client_info: dict = None):
@@ -150,7 +160,7 @@ class AuthService:
 
             # 2. Extract Identity Claims
             email = idinfo['email']
-            full_name = idinfo.get('name', 'Google User')
+            full_name_google = idinfo.get('name', 'Google User')
             
             # 3. Resolve Domain Identity
             user = await self.repo.get_user_by_email(email)
@@ -160,7 +170,7 @@ class AuthService:
                 # Password hash is NULL for social users (cannot login via password unless reset)
                 user = await self.repo.create_user(
                     email=email,
-                    full_name=full_name,
+                    full_name=full_name_google,
                     password_hash=None, 
                     role="doctor"
                 )
@@ -176,6 +186,13 @@ class AuthService:
 
             org_id = str(user["organization_id"]) if user["organization_id"] else None
             
+            # Logic for Task 1: If assistant, try to get doctor's name
+            full_name = user["full_name"]
+            if user["role"] == "assistant" and org_id:
+                doc_name = await self.repo.get_doctor_name_by_org(org_id)
+                if doc_name:
+                    full_name = doc_name
+
             token = create_access_token({
                 "sub": str(user["id"]),
                 "email": user["email"],
@@ -188,7 +205,8 @@ class AuthService:
                 "user_id": str(user["id"]),
                 "organization_id": org_id,
                 "role": user["role"],
-                "email": user["email"]
+                "email": user["email"],
+                "full_name": full_name
             }
 
         except ValueError as e:

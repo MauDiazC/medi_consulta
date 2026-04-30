@@ -17,7 +17,8 @@ class AuthRepository:
                     email,
                     password_hash,
                     role,
-                    organization_id
+                    organization_id,
+                    full_name
                 FROM users
                 WHERE email=:email
                 AND active=true
@@ -34,7 +35,8 @@ class AuthRepository:
                     id,
                     email,
                     role,
-                    organization_id
+                    organization_id,
+                    full_name
                 FROM users
                 WHERE id=:id
                 AND active=true
@@ -112,3 +114,20 @@ class AuthRepository:
 
     async def commit(self):
         await self.db.commit()
+
+    async def get_doctor_name_by_org(self, organization_id: str):
+        """Fetches the primary doctor's name for an organization."""
+        result = await self.db.execute(
+            text("""
+                SELECT full_name
+                FROM users
+                WHERE organization_id=CAST(:org_id AS UUID)
+                AND role='doctor'
+                AND active=true
+                ORDER BY created_at ASC
+                LIMIT 1
+            """),
+            {"org_id": organization_id},
+        )
+        row = result.mappings().first()
+        return row["full_name"] if row else None
