@@ -97,6 +97,20 @@ class AppointmentRepository:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
+    async def check_overlap(self, doctor_id: str, scheduled_at: datetime):
+        """
+        Checks if there is an existing appointment for the doctor at the exact same time.
+        """
+        stmt = select(Appointment).where(
+            and_(
+                Appointment.doctor_id == doctor_id,
+                Appointment.scheduled_at == scheduled_at,
+                Appointment.status != "cancelled"
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
     async def update(self, appointment: Appointment):
         await self.db.commit()
         await self.db.refresh(appointment)

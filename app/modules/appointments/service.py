@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timezone, date, timedelta, time
 from uuid import UUID
+from fastapi import HTTPException
 from .models import Appointment
 from .repository import AppointmentRepository
 from .notifier import AppointmentNotifier
@@ -16,19 +17,49 @@ class AppointmentService:
         self.notifier = AppointmentNotifier()
 
     async def schedule(self, payload, org_id: str):
+        # --- VALIDATIONS ---
+        
+        # 1. Ensure scheduled_at is UTC and normalized
+        dt = payload.scheduled_at
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        
+        # 2. Check Business Hours (08:00 - 20:00)
+        start_work = time(8, 0)
+        end_work = time(20, 0)
+        appt_time = dt.time()
+        
+        if appt_time < start_work or appt_time >= end_work:
+            raise HTTPException(400, "Cita fuera del horario laboral (08:00 - 20:00)")
+            
+        # 3. Check 40-minute slot alignment
+        # Calculate minutes since 08:00
+        minutes_since_start = (dt.hour - 8) * 60 + dt.minute
+        if minutes_since_start % 40 != 0:
+            raise HTTPException(400, "La hora de la cita debe estar alineada a bloques de 40 minutos")
+            
+        # 4. Check for double booking (Overlap)
+        is_occupied = await self.repo.check_overlap(str(payload.doctor_id), dt)
+        if is_occupied:
+            raise HTTPException(409, "El horario seleccionado ya está ocupado por otra cita")
+
+        # --- EXECUTION ---
         appointment = Appointment(
             patient_id=payload.patient_id,
             organization_id=UUID(org_id),
             doctor_id=payload.doctor_id,
-            scheduled_at=payload.scheduled_at,
+            scheduled_at=dt,
             metadata_json=payload.metadata_json or {}
         )
         saved = await self.repo.create(appointment)
         
         # Immediate notification
-        await self.trigger_notification(str(saved.id), "immediate")
-        saved.reminder_immediate_sent = True
-        await self.repo.update(saved)
+        try:
+            await self.trigger_notification(str(saved.id), "immediate")
+            saved.reminder_immediate_sent = True
+            await self.repo.update(saved)
+        except Exception as e:
+            logger.error(f"Error sending immediate notification: {str(e)}")
         
         return saved
 
@@ -174,7 +205,12 @@ class AppointmentService:
             # For simplicity, we check if an appointment starts within the slot
             occupied_by = None
             for appt in existing_appts:
-                if slot_start <= appt.scheduled_at < slot_end:
+                # Normalizar a UTC para comparación
+                appt_time = appt.scheduled_at
+                if appt_time.tzinfo is None:
+                    appt_time = appt_time.replace(tzinfo=timezone.utc)
+                
+                if slot_start <= appt_time < slot_end:
                     occupied_by = appt.id
                     break
             
