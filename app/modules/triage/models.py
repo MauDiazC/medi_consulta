@@ -1,8 +1,11 @@
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, ForeignKey, Float
+from datetime import UTC, datetime
+
+from sqlalchemy import Column, DateTime, Float, String
 from sqlalchemy.dialects.postgresql import UUID
+
 from app.core.database import Base
+
 
 class Triage(Base):
     __tablename__ = "triage"
@@ -12,7 +15,7 @@ class Triage(Base):
     appointment_id = Column(UUID(as_uuid=True), nullable=True)
     organization_id = Column(UUID(as_uuid=True), nullable=False)
     doctor_id = Column(UUID(as_uuid=True), nullable=False)
-    
+
     # Vital Signs
     heart_rate = Column(Float, nullable=True) # Frecuencia cardiaca
     oxygen_saturation = Column(Float, nullable=True) # Saturación de oxigeno
@@ -20,5 +23,5 @@ class Triage(Base):
     weight = Column(Float, nullable=True) # Peso
     height = Column(Float, nullable=True) # Talla
     temperature = Column(Float, nullable=True) # Temperatura
-    
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))

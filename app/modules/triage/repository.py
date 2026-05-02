@@ -1,6 +1,8 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from .models import Triage
+
 
 class TriageRepository:
     def __init__(self, db: AsyncSession):

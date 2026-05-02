@@ -2,6 +2,7 @@ from .models import Triage
 from .repository import TriageRepository
 from .schemas import TriageCreate
 
+
 class TriageService:
     def __init__(self, repository: TriageRepository):
         self.repository = repository
@@ -23,3 +24,6 @@ class TriageService:
 
     async def get_latest_by_patient(self, patient_id: str):
         return await self.repository.get_by_patient(patient_id)
+
+    async def get_by_appointment(self, appointment_id: str) -> Triage | None:
+        return await self.repository.get_by_appointment(appointment_id)
