@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.core.permissions import require_role
 
 from .repository import TriageRepository
-from .schemas import TriageCreate, TriageRead
+from .schemas import TriageCreate, TriageRead, TriageStatus
 from .service import TriageService
 
 router = APIRouter(prefix="/triage", tags=["triage"])
@@ -36,17 +36,22 @@ async def get_patient_triage_history(
     """
     return await service.get_latest_by_patient(patient_id)
 
-@router.get("/appointment/{appointment_id}", response_model=TriageRead)
+@router.get("/appointment/{appointment_id}", response_model=TriageStatus)
 async def get_triage_by_appointment(
     appointment_id: str,
     user=Depends(require_role("doctor", "nurse", "receptionist")),
     service: TriageService = Depends(get_service)
 ):
     """
-    Obtiene el triage realizado para una cita específica.
+    Obtiene el estado del triage para una cita específica.
+    Si no existe, devuelve vital_signs_taken: false.
     """
     triage = await service.get_by_appointment(appointment_id)
     if not triage:
-        raise HTTPException(404, "Triage not found for this appointment")
-    return triage
+        return TriageStatus(vital_signs_taken=False, triage=None)
+    
+    return TriageStatus(
+        vital_signs_taken=triage.vital_signs_taken,
+        triage=triage
+    )
 

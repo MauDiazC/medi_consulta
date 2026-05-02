@@ -39,3 +39,7 @@ class TriageRead(TriageBase):
             self.height is not None,
             self.temperature is not None
         ])
+
+class TriageStatus(BaseModel):
+    vital_signs_taken: bool
+    triage: TriageRead | None = None
