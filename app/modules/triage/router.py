@@ -16,7 +16,7 @@ def get_service(db: AsyncSession = Depends(get_db)):
 @router.post("", response_model=TriageRead)
 async def create_triage(
     payload: TriageCreate,
-    user=Depends(require_role("doctor", "nurse", "receptionist")),
+    user=Depends(require_role("doctor", "nurse", "receptionist", "assistant")),
     service: TriageService = Depends(get_service)
 ):
     """
@@ -28,7 +28,7 @@ async def create_triage(
 @router.get("/patient/{patient_id}", response_model=list[TriageRead])
 async def get_patient_triage_history(
     patient_id: str,
-    user=Depends(require_role("doctor", "nurse", "receptionist")),
+    user=Depends(require_role("doctor", "nurse", "receptionist", "assistant")),
     service: TriageService = Depends(get_service)
 ):
     """
@@ -39,7 +39,7 @@ async def get_patient_triage_history(
 @router.get("/appointment/{appointment_id}", response_model=TriageStatus)
 async def get_triage_by_appointment(
     appointment_id: str,
-    user=Depends(require_role("doctor", "nurse", "receptionist")),
+    user=Depends(require_role("doctor", "nurse", "receptionist", "assistant")),
     service: TriageService = Depends(get_service)
 ):
     """
@@ -54,4 +54,3 @@ async def get_triage_by_appointment(
         vital_signs_taken=triage.vital_signs_taken,
         triage=triage
     )
-
