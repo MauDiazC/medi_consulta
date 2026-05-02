@@ -60,6 +60,20 @@ async def attend_appointment(
         raise HTTPException(404, "Appointment not found")
     return updated
 
+@router.patch("/{appointment_id}/cancel", response_model=AppointmentRead)
+async def cancel_appointment(
+    appointment_id: str,
+    user=Depends(require_role("doctor", "nurse", "receptionist", "assistant")),
+    service: AppointmentService = Depends(get_service)
+):
+    """
+    Cancela la cita y libera el slot de tiempo.
+    """
+    updated = await service.cancel(appointment_id)
+    if not updated:
+        raise HTTPException(404, "Appointment not found")
+    return updated
+
 @router.get("", response_model=list[AppointmentRead])
 async def list_appointments(
     status: Optional[str] = None,

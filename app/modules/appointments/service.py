@@ -128,6 +128,23 @@ class AppointmentService:
         
         return updated
 
+    async def cancel(self, appointment_id: str):
+        appointment = await self.repo.get_by_id(appointment_id)
+        if not appointment:
+            return None
+            
+        appointment.status = "cancelled"
+        updated = await self.repo.update(appointment)
+        
+        # Publicar evento para actualizar el dashboard en tiempo real
+        await publish_event("appointment.updated", {
+            "appointment_id": str(appointment.id),
+            "status": "cancelled",
+            "patient_id": str(appointment.patient_id)
+        })
+        
+        return updated
+
     async def process_pending_reminders(self):
         """
         Logic for the background worker.
