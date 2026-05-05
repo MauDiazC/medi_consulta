@@ -78,11 +78,11 @@ def create_app() -> FastAPI:
 
     # --- CORS (Professional Configuration)
     # Note: If allow_credentials is True, allow_origins cannot be ["*"]
-    # We use dynaconf to load ALLOWED_ORIGINS, defaulting to ["*"] which FastAPI handles 
-    # specially when credentials are True (it replaces * with the request origin)
+    # We use allow_origin_regex to allow any origin while supporting credentials,
+    # as Starlette will reflect the Origin header in the response.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.get("ALLOWED_ORIGINS", ["*"]),
+        allow_origin_regex=".*",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
