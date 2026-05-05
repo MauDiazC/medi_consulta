@@ -76,22 +76,24 @@ def create_app() -> FastAPI:
     async def shutdown_event():
         logger.info("Application shutting down")
 
+    # --- Idempotency (Professional Layer)
+    from app.core.idempotency import IdempotencyMiddleware
+    app.add_middleware(IdempotencyMiddleware, redis_url=settings.REDIS_URL)
+
     # --- CORS (Professional Configuration)
     # Note: If allow_credentials is True, allow_origins cannot be ["*"]
     # We use allow_origin_regex to allow any origin while supporting credentials,
     # as Starlette will reflect the Origin header in the response.
+    # Moving it AFTER Idempotency ensures it's the outermost layer.
     app.add_middleware(
         CORSMiddleware,
+        allow_origins=["*"] if not getattr(settings, "CORS_ALLOW_CREDENTIALS", True) else [],
         allow_origin_regex=".*",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
         expose_headers=["*"],
     )
-
-    # --- Idempotency (Professional Layer)
-    from app.core.idempotency import IdempotencyMiddleware
-    app.add_middleware(IdempotencyMiddleware, redis_url=settings.REDIS_URL)
 
     # Initialize Prometheus Metrics
     Instrumentator().instrument(app).expose(app)
