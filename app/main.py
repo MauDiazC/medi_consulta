@@ -76,13 +76,17 @@ def create_app() -> FastAPI:
     async def shutdown_event():
         logger.info("Application shutting down")
 
-    # --- CORS
+    # --- CORS (Professional Configuration)
+    # Note: If allow_credentials is True, allow_origins cannot be ["*"]
+    # We use dynaconf to load ALLOWED_ORIGINS, defaulting to ["*"] which FastAPI handles 
+    # specially when credentials are True (it replaces * with the request origin)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"], 
+        allow_origins=settings.get("ALLOWED_ORIGINS", ["*"]),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["*"],
     )
 
     # --- Idempotency (Professional Layer)
