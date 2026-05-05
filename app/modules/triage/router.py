@@ -23,7 +23,7 @@ async def create_triage(
     Registra los signos vitales (triage) de un paciente.
     Idealmente se llama después de cerrar una cita y antes de iniciar un encuentro.
     """
-    return await service.create_triage(payload, user["org"], user["id"])
+    return await service.create_triage(payload, user["org"], user["sub"])
 
 @router.get("/patient/{patient_id}", response_model=list[TriageRead])
 async def get_patient_triage_history(
