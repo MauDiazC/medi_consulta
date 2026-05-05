@@ -111,6 +111,65 @@ async def handle_note_signed_task(ctx, event_data: dict):
         logger.error(f"PDF Worker error: {str(e)}", exc_info=True)
         raise e # ARQ will retry if exception is raised
 
+async def handle_clinical_embedding_task(ctx, event_data: dict):
+    """
+    ARQ Task: Generates and stores clinical note embeddings for RAG.
+    """
+    note_id = event_data.get("note_id")
+    if not note_id: return
+
+    from app.modules.rag.embedding_service import EmbeddingService
+    from sqlalchemy import text
+    
+    try:
+        async with AsyncSessionLocal() as db:
+            # 1. Fetch note content and patient_id
+            stmt = text("""
+                SELECT cn.subjective, cn.objective, cn.assessment, cn.plan, e.patient_id
+                FROM clinical_notes cn
+                JOIN encounters e ON cn.encounter_id = e.id
+                WHERE cn.id = CAST(:nid AS UUID)
+            """)
+            result = await db.execute(stmt, {"nid": note_id})
+            row = result.mappings().first()
+            
+            if not row:
+                logger.error(f"Note not found for embedding: {note_id}")
+                return
+                
+            # 2. Prepare text for embedding
+            clinical_text = f"""
+            SUBJETIVO: {row['subjective'] or ''}
+            OBJETIVO: {row['objective'] or ''}
+            ASIENTO/IMPRESION: {row['assessment'] or ''}
+            PLAN: {row['plan'] or ''}
+            """.strip()
+            
+            if not clinical_text:
+                logger.warning(f"Empty clinical text for note {note_id}, skipping embedding.")
+                return
+
+            # 3. Generate embedding
+            embedder = EmbeddingService()
+            vector = await embedder.embed(clinical_text)
+            
+            # 4. Store embedding
+            await db.execute(text("""
+                INSERT INTO clinical_note_embeddings (note_id, patient_id, embedding)
+                VALUES (CAST(:nid AS UUID), CAST(:pid AS UUID), :vector)
+                ON CONFLICT (note_id) DO UPDATE SET embedding = :vector
+            """), {
+                "nid": note_id,
+                "pid": row['patient_id'],
+                "vector": vector
+            })
+            await db.commit()
+            logger.info(f"Clinical embedding generated and stored for note: {note_id}")
+            
+    except Exception as e:
+        logger.error(f"Embedding Worker error: {str(e)}", exc_info=True)
+        raise e
+
 # --- Background Loops ---
 
 async def relay_outbox_events():
@@ -137,6 +196,7 @@ async def relay_outbox_events():
                     # 2. ARQ for reliable heavy tasks
                     if event.event_type == "note.signed":
                         await arq_pool.enqueue_job('handle_note_signed_task', event.payload)
+                        await arq_pool.enqueue_job('handle_clinical_embedding_task', event.payload)
                     elif event.event_type == "auth.login_notification":
                         await arq_pool.enqueue_job('handle_login_notification_task', event.payload)
                     elif event.event_type == "auth.password_reset":
@@ -162,7 +222,8 @@ class WorkerSettings:
     functions = [
         handle_note_signed_task, 
         handle_login_notification_task, 
-        handle_password_reset_task
+        handle_password_reset_task,
+        handle_clinical_embedding_task
     ]
     redis_settings = get_redis_settings()
     
