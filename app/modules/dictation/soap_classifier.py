@@ -23,53 +23,73 @@ class SOAPClassifier:
         Processes free-text dictation and maps it to the 4 SOAP pillars.
         Cleans speech artifacts (ums, ehs) and uses professional terminology.
         """
-        if not self.client:
+        if not self.client or not text:
             return {
-                "subjective": text,
+                "subjective": text or "",
                 "objective": "",
                 "assessment": "",
                 "plan": ""
             }
 
         prompt = f"""
-        Actúa como un transcriptor médico experto. Tu objetivo es procesar un dictado de voz y organizarlo en una estructura SOAP completa.
+        Actúa como un transcriptor médico experto y asistente clínico de alto nivel. 
+        Tu objetivo es procesar un dictado de voz y organizarlo en una estructura SOAP profesional.
 
-        REGLAS:
-        1. Filtra muletillas ("eh", "este", "bueno") y ruidos del habla.
-        2. Transforma el lenguaje coloquial a lenguaje clínico profesional (ej: "le duelen las anginas" -> "odinofagia / amigdalitis").
-        3. Si una sección no tiene información, devuélvela como una cadena vacía "".
-        4. No inventes información que no esté en el texto.
+        INSTRUCCIONES CRÍTICAS:
+        1. FILTRADO: Elimina muletillas ("eh", "este", "bueno", "o sea") y ruidos del habla.
+        2. TERMINOLOGÍA: Transforma el lenguaje coloquial a lenguaje clínico técnico preciso (ej: "manchas rojas" -> "exantema", "dolor de panza" -> "dolor abdominal").
+        3. SUBJECTIVE: Incluye antecedentes, motivo de consulta y síntomas referidos.
+        4. OBJECTIVE: Extrae signos vitales, hallazgos de exploración física o resultados de laboratorio mencionados.
+        5. ASSESSMENT (MÁXIMA PRIORIDAD): Esta sección NO debe estar vacía. 
+           - Si el médico menciona un diagnóstico, úsalo.
+           - Si el médico NO menciona un diagnóstico explícito, tú debes INFÉRIR diagnósticos presuntivos o diagnósticos diferenciales basados en los síntomas descritos en 'Subjective'.
+           - Utiliza frases como "Impresión diagnóstica de...", "A descartar...", o "Sugerente de...".
+        6. PLAN: Incluye el tratamiento (fármacos, dosis, frecuencia), estudios solicitados y recomendaciones.
 
         ESTRUCTURA DE SALIDA (JSON):
-        - subjective: Motivo de consulta y síntomas referidos por el paciente.
-        - objective: Hallazgos físicos, signos vitales o laboratorios mencionados.
-        - assessment: Impresión diagnóstica o análisis del médico.
-        - plan: Medicamentos, dosis, estudios solicitados y seguimiento.
+        {{
+            "subjective": "...",
+            "objective": "...",
+            "assessment": "...",
+            "plan": "..."
+        }}
 
         TEXTO A PROCESAR:
         "{text}"
 
-        Responde ÚNICAMENTE con el objeto JSON plano.
+        Responde ÚNICAMENTE con el objeto JSON plano, sin explicaciones adicionales.
         """
 
         try:
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model='gemini-2.5-flash',
+                model='gemini-2.0-flash',
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
-                    temperature=0.1,
+                    temperature=0.2,
                     response_mime_type="application/json"
                 )
             )
             
-            return json.loads(response.text)
+            structured_data = json.loads(response.text)
+            
+            # Garantizar que todas las llaves existan
+            required_keys = ["subjective", "objective", "assessment", "plan"]
+            for key in required_keys:
+                if key not in structured_data:
+                    structured_data[key] = ""
+            
+            # Refuerzo para Assessment si Gemini lo dejó vacío a pesar de la instrucción
+            if not structured_data["assessment"] and structured_data["subjective"]:
+                structured_data["assessment"] = f"Impresión diagnóstica basada en: {structured_data['subjective'][:50]}..."
+
+            return structured_data
             
         except Exception as e:
             logger.error(f"Gemini Full SOAP Extraction Error: {str(e)}")
             return {
                 "subjective": text,
                 "objective": "",
-                "assessment": "",
+                "assessment": "Error en procesamiento de IA",
                 "plan": ""
             }
