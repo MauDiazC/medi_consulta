@@ -63,10 +63,10 @@ class SOAPClassifier:
         try:
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model='gemini-2.0-flash',
+                model='gemini-1.5-flash',
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
-                    temperature=0.2,
+                    temperature=0.1,
                     response_mime_type="application/json"
                 )
             )
@@ -79,17 +79,17 @@ class SOAPClassifier:
                 if key not in structured_data:
                     structured_data[key] = ""
             
-            # Refuerzo para Assessment si Gemini lo dejó vacío a pesar de la instrucción
-            if not structured_data["assessment"] and structured_data["subjective"]:
-                structured_data["assessment"] = f"Impresión diagnóstica basada en: {structured_data['subjective'][:50]}..."
+            # Refuerzo para Assessment si Gemini lo dejó vacío
+            if not structured_data.get("assessment") and structured_data.get("subjective"):
+                structured_data["assessment"] = "Evaluación clínica presuntiva basada en sintomatología."
 
             return structured_data
             
         except Exception as e:
-            logger.error(f"Gemini Full SOAP Extraction Error: {str(e)}")
+            logger.error(f"Gemini SOAP Error: {str(e)}")
             return {
                 "subjective": text,
                 "objective": "",
-                "assessment": "Error en procesamiento de IA",
-                "plan": ""
+                "assessment": f"Error de IA: {str(e)[:40]}",
+                "plan": "Reintente o complete manualmente."
             }
