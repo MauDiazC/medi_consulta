@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 
 from fastapi import APIRouter, Depends, Header, File, UploadFile, Request, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
@@ -28,16 +29,16 @@ def get_service(
 
 @router.get("/encounter/{encounter_id}")
 async def list_notes_by_encounter(
-    encounter_id: str,
+    encounter_id: uuid.UUID,
     user=Depends(get_current_user),
     service=Depends(get_service),
 ):
     """Lists all note versions for a specific encounter."""
-    return await service.repo.list_by_encounter(encounter_id, user["org"])
+    return await service.repo.list_by_encounter(str(encounter_id), user["org"])
 
 @router.get("/{note_id}")
 async def get_note(
-    note_id: str,
+    note_id: uuid.UUID,
     request: Request,
     background_tasks: BackgroundTasks,
     user=Depends(get_current_user),
@@ -48,7 +49,7 @@ async def get_note(
     Retrieves a clinical note by ID.
     Audits access for compliance (SaaS/HIPAA standard).
     """
-    note = await service.repo.get(note_id, user["org"])
+    note = await service.repo.get(str(note_id), user["org"])
     if not note:
         raise HTTPException(status_code=404, detail="Nota clínica no encontrada.")
     
@@ -58,7 +59,7 @@ async def get_note(
         background_tasks,
         get_db, # Factory for fresh session
         entity="clinical_note",
-        entity_id=note_id,
+        entity_id=str(note_id),
         action="READ_ACCESS",
         user_id=ctx.user_id,
         organization_id=ctx.organization_id,
@@ -72,14 +73,14 @@ async def get_note(
 
 @router.post("/autosave/{encounter_id}")
 async def autosave_note(
-    encounter_id: str,
+    encounter_id: uuid.UUID,
     payload: dict,
     if_unmodified_since: str | None = Header(None),
     user=Depends(get_current_user),
     service=Depends(get_service),
 ):
     return await service.autosave(
-        encounter_id,
+        str(encounter_id),
         user["sub"],
         user["org"],
         payload,
@@ -89,12 +90,12 @@ async def autosave_note(
 
 @router.post("/finalize/{encounter_id}")
 async def finalize_version(
-    encounter_id: str,
+    encounter_id: uuid.UUID,
     user=Depends(get_current_user),
     service=Depends(get_service),
 ):
     return await service.finalize_version(
-        encounter_id,
+        str(encounter_id),
         user["sub"],
         user["org"],
     )

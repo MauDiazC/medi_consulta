@@ -79,8 +79,8 @@ class ClinicalNoteRepository:
                 "expected_updated_at": expected_updated_at,
             },
         )
-        await self.db.commit()
         mapping = r.mappings().first()
+        await self.db.commit()
         return dict(mapping) if mapping else None
 
     async def deactivate_draft(self, note_id: str, organization_id: str):
@@ -121,8 +121,8 @@ class ClinicalNoteRepository:
             """),
             {**payload, "org_id": organization_id},
         )
-        await self.db.commit()
         mapping = r.mappings().first()
+        await self.db.commit()
         return dict(mapping) if mapping else None
 
     async def sign(self, note_id: str, organization_id: str):

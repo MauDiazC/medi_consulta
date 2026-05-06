@@ -35,73 +35,85 @@ class ClinicalNoteService:
         fields: dict,
         if_unmodified_since: str | None,
     ):
-        await self._check_finality(encounter_id, organization_id)
+        try:
+            await self._check_finality(encounter_id, organization_id)
 
-        # Robust sanitization for common frontend/header issues
-        # Handles cases where browsers or JS libraries send 'null' or 'undefined' as strings
-        if if_unmodified_since in [None, "", "null", "undefined", "NaN"]:
-            if_unmodified_since = None
+            # Robust sanitization for common frontend/header issues
+            # Handles cases where browsers or JS libraries send 'null' or 'undefined' as strings
+            if if_unmodified_since in [None, "", "null", "undefined", "NaN"]:
+                if_unmodified_since = None
 
-        draft = await self.repo.get_active_draft(
-            encounter_id,
-            organization_id
-        )
-
-        if not draft:
-            # Clinical Safety: Auto-provision first draft version if it doesn't exist
-            new_note = await self.repo.create_new_version(
-                {
-                    "encounter_id": encounter_id,
-                    "version": 1,
-                    "subjective": fields.get("subjective", ""),
-                    "objective": fields.get("objective", ""),
-                    "assessment": fields.get("assessment", ""),
-                    "plan": fields.get("plan", ""),
-                    "created_by": doctor_id,
-                },
+            draft = await self.repo.get_active_draft(
+                encounter_id,
                 organization_id
             )
-            if not new_note:
-                 raise HTTPException(404, "Encounter not found for this organization")
 
-            # Defensive Eventing: Prevent Redis failures from breaking the critical path
+            if not draft:
+                # Clinical Safety: Auto-provision first draft version if it doesn't exist
+                new_note = await self.repo.create_new_version(
+                    {
+                        "encounter_id": encounter_id,
+                        "version": 1,
+                        "subjective": fields.get("subjective", ""),
+                        "objective": fields.get("objective", ""),
+                        "assessment": fields.get("assessment", ""),
+                        "plan": fields.get("plan", ""),
+                        "created_by": doctor_id,
+                    },
+                    organization_id
+                )
+                if not new_note:
+                     raise HTTPException(404, "Encounter not found for this organization")
+
+                # Defensive Eventing: Prevent Redis failures from breaking the critical path
+                try:
+                    await publish_event("note.created", {"encounter_id": encounter_id, "note_id": new_note["id"]})
+                except Exception:
+                    pass # Event loss is acceptable vs API crash in this context
+
+                return new_note
+
+            if str(draft["created_by"]) != str(
+                doctor_id
+            ):
+                raise HTTPException(403, "Unauthorized: Only the author can update this draft")
+
+            updated = await self.repo.autosave_update(
+                draft["id"],
+                organization_id,
+                fields,
+                if_unmodified_since,
+            )
+
+            if not updated:
+                raise HTTPException(
+                    409,
+                    "Draft was modified elsewhere or access denied (Optimistic Lock Failure).",
+                )
+
+            # Defensive Eventing
             try:
-                await publish_event("note.created", {"encounter_id": encounter_id, "note_id": new_note["id"]})
+                await publish_event(
+                    "note.autosaved",
+                    {
+                        "encounter_id": encounter_id
+                    },
+                )
             except Exception:
-                pass # Event loss is acceptable vs API crash in this context
+                pass
 
-            return new_note
-
-        if str(draft["created_by"]) != str(
-            doctor_id
-        ):
-            raise HTTPException(403, "Unauthorized: Only the author can update this draft")
-
-        updated = await self.repo.autosave_update(
-            draft["id"],
-            organization_id,
-            fields,
-            if_unmodified_since,
-        )
-
-        if not updated:
-            raise HTTPException(
-                409,
-                "Draft was modified elsewhere or access denied (Optimistic Lock Failure).",
-            )
-
-        # Defensive Eventing
-        try:
-            await publish_event(
-                "note.autosaved",
-                {
-                    "encounter_id": encounter_id
-                },
-            )
-        except Exception:
-            pass
-
-        return updated
+            return updated
+        except HTTPException:
+            raise
+        except Exception as e:
+            import logging
+            logger = logging.getLogger("api")
+            logger.error(f"CRITICAL AUTOSAVE ERROR: {str(e)}", exc_info=True, extra={
+                "encounter_id": encounter_id,
+                "doctor_id": doctor_id,
+                "org_id": organization_id
+            })
+            raise HTTPException(500, f"Error interno en autosave: {str(e)}")
 
     async def finalize_version(
         self,
