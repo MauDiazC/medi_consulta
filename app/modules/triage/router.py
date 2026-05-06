@@ -50,7 +50,18 @@ async def get_triage_by_appointment(
     if not triage:
         return TriageStatus(vital_signs_taken=False, triage=None)
     
+    # Calculate vital_signs_taken manually since the DB model doesn't have the property
+    vital_signs = [
+        triage.heart_rate,
+        triage.oxygen_saturation,
+        triage.blood_pressure,
+        triage.weight,
+        triage.height,
+        triage.temperature
+    ]
+    has_vitals = any(v is not None for v in vital_signs)
+    
     return TriageStatus(
-        vital_signs_taken=triage.vital_signs_taken,
+        vital_signs_taken=has_vitals,
         triage=triage
     )
