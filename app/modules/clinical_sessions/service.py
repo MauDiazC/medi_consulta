@@ -12,14 +12,17 @@ class ClinicalSessionService:
             org_id,
         )
 
-    async def list(self, org_id, limit, offset):
-        return await self._repo.list(org_id, limit, offset)
+    async def list(self, org_id, limit, offset, is_active: bool = None):
+        return await self._repo.list(org_id, limit, offset, is_active)
 
     async def get(self, session_id, org_id):
         session = await self._repo.get(session_id, org_id)
         if not session:
             raise HTTPException(status_code=404, detail="Sesión clínica no encontrada")
         return session
+
+    async def get_encounters(self, session_id, org_id):
+        return await self._repo.get_encounters(session_id, org_id)
 
     async def deactivate(self, session_id, org_id):
         await self._repo.deactivate(session_id, org_id)

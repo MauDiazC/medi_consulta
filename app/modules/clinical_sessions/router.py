@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -33,12 +34,13 @@ async def create_session(
 
 @router.get("")
 async def list_sessions(
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
     page=Depends(pagination_params),
     user=Depends(get_current_user),
     service=Depends(get_service),
 ):
     """List clinical sessions for your organization."""
-    return await service.list(user["org"], page.limit, page.offset)
+    return await service.list(user["org"], page.limit, page.offset, is_active)
 
 
 @router.get("/{session_id}")
@@ -49,6 +51,16 @@ async def get_session(
 ):
     """Get details of a specific session."""
     return await service.get(session_id, user["org"])
+
+
+@router.get("/{session_id}/encounters")
+async def get_session_encounters(
+    session_id: str,
+    user=Depends(get_current_user),
+    service=Depends(get_service),
+):
+    """List all encounters for a specific session (jornada summary)."""
+    return await service.get_encounters(session_id, user["org"])
 
 
 @router.patch("/{session_id}/deactivate")
