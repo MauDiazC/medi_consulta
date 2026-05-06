@@ -7,6 +7,7 @@ from .repository import AppointmentRepository
 from .notifier import AppointmentNotifier
 from .schemas import SlotRead
 from app.modules.patients.repository import PatientRepository
+from app.modules.organizations.repository import OrganizationRepository
 from app.core.events import publish_event
 
 logger = logging.getLogger("appointments.service")
@@ -15,6 +16,7 @@ class AppointmentService:
     def __init__(self, repo: AppointmentRepository):
         self.repo = repo
         self.notifier = AppointmentNotifier()
+        self.org_repo = OrganizationRepository(repo.db)
 
     def _format_mexico_phone(self, phone: str | None) -> str | None:
         if not phone:
@@ -25,6 +27,11 @@ class AppointmentService:
         return clean_phone
 
     async def schedule(self, payload, org_id: str):
+        # --- FETCH SETTINGS ---
+        org = await self.org_repo.get(org_id)
+        settings = org.get("settings", {}) if org else {}
+        days_off = settings.get("days_off", {})
+        
         # --- VALIDATIONS ---
         
         # 1. Ensure scheduled_at is UTC and normalized
@@ -32,7 +39,17 @@ class AppointmentService:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         
-        # 2. Check Business Hours (08:00 - 20:00)
+        # 2. Check Days Off
+        # Weekdays (0=Monday, 6=Sunday in Python is slightly different from some JS, but let's use Python's 0-6)
+        weekday = dt.weekday()
+        if weekday in days_off.get("weekdays", []):
+            raise HTTPException(400, "La clínica no labora en este día de la semana")
+            
+        specific_dates = days_off.get("specific_dates", [])
+        if dt.strftime("%Y-%m-%d") in specific_dates:
+            raise HTTPException(400, "La clínica no labora en esta fecha específica")
+
+        # 3. Check Business Hours (08:00 - 20:00)
         start_work = time(8, 0)
         end_work = time(20, 0)
         appt_time = dt.time()
@@ -40,12 +57,12 @@ class AppointmentService:
         if appt_time < start_work or appt_time >= end_work:
             raise HTTPException(400, "Cita fuera del horario laboral (08:00 - 20:00)")
             
-        # 3. Check 40-minute slot alignment
+        # 4. Check 40-minute slot alignment
         minutes_since_start = (dt.hour - 8) * 60 + dt.minute
         if minutes_since_start % 40 != 0:
             raise HTTPException(400, "La hora de la cita debe estar alineada a bloques de 40 minutos")
             
-        # 4. Check for double booking (Overlap)
+        # 5. Check for double booking (Overlap)
         is_occupied = await self.repo.check_overlap(str(payload.doctor_id), dt)
         if is_occupied:
             raise HTTPException(409, "El horario seleccionado ya está ocupado por otra cita")
@@ -219,6 +236,18 @@ class AppointmentService:
         """
         Generates 40-minute slots from 08:00 to 20:00 and checks availability.
         """
+        # Check Days Off
+        org = await self.org_repo.get(org_id)
+        settings = org.get("settings", {}) if org else {}
+        days_off = settings.get("days_off", {})
+        
+        weekday = target_date.weekday()
+        if weekday in days_off.get("weekdays", []):
+            return [] # No slots on days off
+            
+        if target_date.strftime("%Y-%m-%d") in days_off.get("specific_dates", []):
+            return []
+
         existing_appts = await self.repo.get_doctor_appointments_by_date(org_id, doctor_id, target_date)
         
         slots = []

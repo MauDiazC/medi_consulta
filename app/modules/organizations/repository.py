@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,8 +12,8 @@ class OrganizationRepository:
     async def create(self, name: str):
         r = await self.db.execute(
             text("""
-                INSERT INTO organizations(name, active)
-                VALUES(:name, true)
+                INSERT INTO organizations(name, active, settings)
+                VALUES(:name, true, '{}')
                 RETURNING *
             """),
             {"name": name},
@@ -137,13 +138,15 @@ class OrganizationRepository:
         return r.mappings().first()
 
     async def update(self, org_id: str, payload):
+        settings_json = json.dumps(payload.settings) if payload.settings is not None else None
         r = await self.db.execute(
             text("""
                 UPDATE organizations
                 SET name = COALESCE(:name, name),
                     address = COALESCE(:address, address),
                     phone = COALESCE(:phone, phone),
-                    description = COALESCE(:description, description)
+                    description = COALESCE(:description, description),
+                    settings = COALESCE(CAST(:settings AS JSONB), settings)
                 WHERE id = CAST(:id AS UUID)
                 RETURNING *
             """),
@@ -152,60 +155,8 @@ class OrganizationRepository:
                 "name": payload.name,
                 "address": payload.address,
                 "phone": payload.phone,
-                "description": payload.description
-            },
-        )
-        # Commit removed for service orchestration
-        return r.mappings().first()
-
-    async def deactivate(self, org_id: str):
-        await self.db.execute(
-            text("""
-                UPDATE organizations
-                SET active=false
-                WHERE id = CAST(:id AS UUID)
-            """),
-            {"id": org_id},
-        )
-        # Commit removed for service orchestration
-
-    async def activate(self, org_id: str):
-        """Re-enables an organization."""
-        await self.db.execute(
-            text("""
-                UPDATE organizations
-                SET active=true
-                WHERE id = CAST(:id AS UUID)
-            """),
-            {"id": org_id},
-        )
-        # Commit removed for service orchestration
-
-    async def hard_delete(self, org_id: str):
-        """DANGER: Physical deletion. Use only for dev/testing."""
-        await self.db.execute(
-            text("DELETE FROM organizations WHERE id = CAST(:id AS UUID)"),
-            {"id": org_id}
-        )
-        await self.db.commit()
-
-    async def update(self, org_id: str, payload):
-        r = await self.db.execute(
-            text("""
-                UPDATE organizations
-                SET name = COALESCE(:name, name),
-                    address = COALESCE(:address, address),
-                    phone = COALESCE(:phone, phone),
-                    description = COALESCE(:description, description)
-                WHERE id = CAST(:id AS UUID)
-                RETURNING *
-            """),
-            {
-                "id": org_id, 
-                "name": payload.name,
-                "address": payload.address,
-                "phone": payload.phone,
-                "description": payload.description
+                "description": payload.description,
+                "settings": settings_json
             },
         )
         # Commit removed for service orchestration
