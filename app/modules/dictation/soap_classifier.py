@@ -63,7 +63,7 @@ class SOAPClassifier:
         try:
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model='gemini-1.5-flash',
+                model='gemini-2.5-flash',
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     temperature=0.1,
@@ -90,6 +90,6 @@ class SOAPClassifier:
             return {
                 "subjective": text,
                 "objective": "",
-                "assessment": f"Error de IA: {str(e)[:40]}",
+                "assessment": f"Error de IA (2.5): {str(e)[:40]}",
                 "plan": "Reintente o complete manualmente."
             }
