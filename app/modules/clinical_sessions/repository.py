@@ -1,3 +1,4 @@
+from typing import List, Optional
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,8 +45,8 @@ class ClinicalSessionRepository:
         org_id: str, 
         limit: int = 10, 
         offset: int = 0, 
-        is_active: bool = None,
-        authorized_doctor_ids: list[str] = None
+        is_active: Optional[bool] = None,
+        authorized_doctor_ids: Optional[List[str]] = None
     ):
         """List sessions for an organization with optional status and doctor filters."""
         query = "SELECT * FROM clinical_sessions WHERE organization_id = CAST(:org_id AS UUID)"
@@ -66,7 +67,7 @@ class ClinicalSessionRepository:
         r = await self._db.execute(text(query), params)
         return r.mappings().all()
 
-    async def get(self, session_id: str, org_id: str, authorized_doctor_ids: list[str] = None):
+    async def get(self, session_id: str, org_id: str, authorized_doctor_ids: Optional[List[str]] = None):
         """Get a specific session validating organization and doctor authorization."""
         query = "SELECT * FROM clinical_sessions WHERE id = CAST(:id AS UUID) AND organization_id = CAST(:org_id AS UUID)"
         params = {"id": session_id, "org_id": org_id}
