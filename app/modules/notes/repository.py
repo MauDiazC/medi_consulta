@@ -64,7 +64,7 @@ class ClinicalNoteRepository:
             SET {set_clause},
                 updated_at = now()
             WHERE id = CAST(:note_id AS UUID)
-              AND (:expected_updated_at IS NULL OR updated_at = CAST(:expected_updated_at AS timestamp with time zone))
+              AND (CAST(:expected_updated_at AS timestamp with time zone) IS NULL OR updated_at = CAST(:expected_updated_at AS timestamp with time zone))
               AND id IN (
                   SELECT cn.id FROM clinical_notes cn
                   JOIN encounters e ON cn.encounter_id = e.id
