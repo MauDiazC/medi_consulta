@@ -64,19 +64,25 @@ class ClinicalSessionRepository:
         await self._db.execute(
             text("""
                 UPDATE clinical_sessions
-                SET is_active = false
+                SET is_active = false,
+                    closed_at = now()
                 WHERE id = CAST(:id AS UUID) AND organization_id = CAST(:org_id AS UUID)
             """),
             {"id": session_id, "org_id": org_id}
         )
         await self._db.commit()
 
+    async def close(self, session_id: str, org_id: str):
+        """Semantic alias for closing a clinical session with timestamp."""
+        return await self.deactivate(session_id, org_id)
+
     async def activate(self, session_id: str, org_id: str):
         """Re-open/activate a clinical session."""
         await self._db.execute(
             text("""
                 UPDATE clinical_sessions
-                SET is_active = true
+                SET is_active = true,
+                    closed_at = NULL
                 WHERE id = CAST(:id AS UUID) AND organization_id = CAST(:org_id AS UUID)
             """),
             {"id": session_id, "org_id": org_id}

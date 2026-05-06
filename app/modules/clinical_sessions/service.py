@@ -25,6 +25,11 @@ class ClinicalSessionService:
         await self._repo.deactivate(session_id, org_id)
         return {"status": "deactivated"}
 
+    async def close(self, session_id, org_id):
+        """Semantic close with timestamp."""
+        await self._repo.close(session_id, org_id)
+        return {"status": "closed"}
+
     async def activate(self, session_id, org_id):
         await self._repo.activate(session_id, org_id)
         return {"status": "activated"}

@@ -61,6 +61,16 @@ async def deactivate_session(
     return await service.deactivate(session_id, user["org"])
 
 
+@router.post("/{session_id}/close")
+async def close_session(
+    session_id: str,
+    user=Depends(get_current_user),
+    service=Depends(get_service),
+):
+    """Semantic close for a clinical session (jornada)."""
+    return await service.close(session_id, user["org"])
+
+
 @router.patch("/{session_id}/activate")
 async def activate_session(
     session_id: str,
