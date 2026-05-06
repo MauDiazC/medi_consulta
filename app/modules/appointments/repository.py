@@ -27,7 +27,8 @@ class AppointmentRepository:
             SELECT 
                 a.*, 
                 p.first_name as patient_first_name,
-                p.last_name as patient_last_name
+                p.last_name as patient_last_name,
+                EXISTS(SELECT 1 FROM triage t WHERE t.appointment_id = a.id) as is_triage
             FROM appointments a
             LEFT JOIN patients p ON a.patient_id = p.id
             WHERE a.id = :aid
@@ -52,7 +53,8 @@ class AppointmentRepository:
             SELECT 
                 a.*, 
                 p.first_name as patient_first_name,
-                p.last_name as patient_last_name
+                p.last_name as patient_last_name,
+                EXISTS(SELECT 1 FROM triage t WHERE t.appointment_id = a.id) as is_triage
             FROM appointments a
             LEFT JOIN patients p ON a.patient_id = p.id
             WHERE a.organization_id = :org_id
