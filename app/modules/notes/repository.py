@@ -43,7 +43,7 @@ class ClinicalNoteRepository:
         note_id: str,
         organization_id: str,
         fields: dict,
-        expected_updated_at: str,
+        expected_updated_at: str | None,
     ):
         """Secure update validating the organization ownership via join."""
         allowed_fields = {"subjective", "objective", "assessment", "plan"}
@@ -57,13 +57,14 @@ class ClinicalNoteRepository:
         )
 
         # UPDATE with JOIN or subquery to ensure multi-tenancy
+        # Optimistic locking: only update if expected_updated_at matches OR is not provided
         r = await self.db.execute(
             text(f"""
             UPDATE clinical_notes
             SET {set_clause},
                 updated_at = now()
             WHERE id = CAST(:note_id AS UUID)
-              AND updated_at = :expected_updated_at
+              AND (:expected_updated_at IS NULL OR updated_at = CAST(:expected_updated_at AS timestamp with time zone))
               AND id IN (
                   SELECT cn.id FROM clinical_notes cn
                   JOIN encounters e ON cn.encounter_id = e.id
@@ -79,7 +80,8 @@ class ClinicalNoteRepository:
             },
         )
         await self.db.commit()
-        return r.mappings().first()
+        mapping = r.mappings().first()
+        return dict(mapping) if mapping else None
 
     async def deactivate_draft(self, note_id: str, organization_id: str):
         """Deactivate validating organization."""
@@ -120,7 +122,8 @@ class ClinicalNoteRepository:
             {**payload, "org_id": organization_id},
         )
         await self.db.commit()
-        return r.mappings().first()
+        mapping = r.mappings().first()
+        return dict(mapping) if mapping else None
 
     async def sign(self, note_id: str, organization_id: str):
         """Secure sign validating organization and closing the draft."""

@@ -48,7 +48,7 @@ async def get_note(
     Retrieves a clinical note by ID.
     Audits access for compliance (SaaS/HIPAA standard).
     """
-    note = await service.repo.get(note_id)
+    note = await service.repo.get(note_id, user["org"])
     if not note:
         raise HTTPException(status_code=404, detail="Nota clínica no encontrada.")
     
@@ -74,7 +74,7 @@ async def get_note(
 async def autosave_note(
     encounter_id: str,
     payload: dict,
-    if_unmodified_since: str = Header(...),
+    if_unmodified_since: str | None = Header(None),
     user=Depends(get_current_user),
     service=Depends(get_service),
 ):
