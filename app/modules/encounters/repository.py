@@ -16,6 +16,7 @@ class EncounterRepository:
                     patient_id,
                     organization_id,
                     doctor_id,
+                    appointment_id,
                     reason,
                     status
                 )
@@ -24,6 +25,7 @@ class EncounterRepository:
                     CAST(:patient AS UUID),
                     CAST(:org AS UUID),
                     CAST(:doctor AS UUID),
+                    CAST(:appointment AS UUID),
                     :reason,
                     'open'
                 )
@@ -34,6 +36,7 @@ class EncounterRepository:
                 "patient": payload.patient_id,
                 "org": org,
                 "doctor": doctor_id,
+                "appointment": payload.appointment_id,
                 "reason": payload.reason,
             },
         )

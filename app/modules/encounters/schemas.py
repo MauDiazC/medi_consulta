@@ -6,6 +6,7 @@ class EncounterCreate(BaseModel):
     patient_id: str
     doctor_id: str
     reason: str
+    appointment_id: str | None = None
 
 
 class EncounterUpdate(BaseModel):
