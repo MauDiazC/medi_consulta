@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timezone, time, date as date_type
 from typing import Optional
+import pytz
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
@@ -86,12 +87,20 @@ async def list_appointments(
 ):
     """
     Lista las citas de la organización. Filtra por doctores autorizados.
+    Usa la zona horaria de CDMX por defecto para el filtro de 'hoy'.
     """
-    # Si no hay fechas y NO se está filtrando por paciente, definimos el rango de "hoy"
+    # Si no hay fechas y NO se está filtrando por paciente, definimos el rango de "hoy" en CDMX
     if not start_date and not end_date and not patient_id:
-        today = datetime.now(timezone.utc).date()
-        start_date = datetime.combine(today, time.min).replace(tzinfo=timezone.utc)
-        end_date = datetime.combine(today, time.max).replace(tzinfo=timezone.utc)
+        tz = pytz.timezone("America/Mexico_City")
+        today_local = datetime.now(tz).date()
+        
+        # Convertimos el inicio y fin del día local a UTC para la consulta en DB
+        local_start = datetime.combine(today_local, time.min)
+        local_end = datetime.combine(today_local, time.max)
+        
+        # Localizar y convertir a UTC
+        start_date = tz.localize(local_start).astimezone(pytz.UTC)
+        end_date = tz.localize(local_end).astimezone(pytz.UTC)
     
     return await service.list_by_org(user["org"], status, start_date, end_date, patient_id, authorized_doctor_ids)
 
@@ -123,7 +132,8 @@ async def get_availability(
         raise HTTPException(403, "Not authorized to view availability for this doctor")
 
     if not target_date:
-        target_date = datetime.now(timezone.utc).date()
+        tz = pytz.timezone("America/Mexico_City")
+        target_date = datetime.now(tz).date()
         
     return await service.get_availability(user["org"], doctor_id, target_date)
 
