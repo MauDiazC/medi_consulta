@@ -5,6 +5,7 @@ from app.core.dependencies import get_current_user
 from app.core.permissions import require_role
 from app.modules.notes.repository import ClinicalNoteRepository
 from .service import TTSService
+from .schemas import TTSRequest
 import uuid
 
 router = APIRouter(prefix="/tts", tags=["tts"])
@@ -42,7 +43,7 @@ async def read_prescription(
 
 @router.post("/read-text")
 async def read_custom_text(
-    payload: dict,
+    payload: TTSRequest,
     user = Depends(require_role("doctor")),
     s: TTSService = Depends(get_service)
 ):
@@ -50,11 +51,7 @@ async def read_custom_text(
     Converts any custom text to audio.
     Useful for immediate instructions not yet saved in a note.
     """
-    text = payload.get("text")
-    if not text:
-        raise HTTPException(status_code=400, detail="El texto es requerido.")
-        
     return StreamingResponse(
-        s.generate_speech_stream(text),
+        s.generate_speech_stream(payload.text),
         media_type="audio/mpeg"
     )
