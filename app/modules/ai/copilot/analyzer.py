@@ -32,19 +32,19 @@ class CopilotAnalyzer:
         if not draft.get("assessment"):
             suggestions.append({
                 "type": "OMISSION",
-                "content": "La sección de impresión diagnóstica (Assessment) está vacía.",
+                "content": "Se recomienda completar la sección de impresión diagnóstica (Assessment).",
                 "severity": "medium"
             })
 
         if not draft.get("plan"):
             suggestions.append({
                 "type": "OMISSION",
-                "content": "No se ha definido un Plan de tratamiento o seguimiento.",
+                "content": "Se recomienda definir un plan de tratamiento o seguimiento para el paciente.",
                 "severity": "medium"
             })
 
         # 2. Clinical Intelligence (LLM-based)
-        if self.client and draft.get("subjective") or draft.get("objective"):
+        if self.client and (draft.get("subjective") or draft.get("objective")):
             ai_safety = await self._run_ai_safety_check(draft)
             suggestions.extend(ai_safety)
 
@@ -58,12 +58,16 @@ class CopilotAnalyzer:
             # Contextual prompt for Safety Only
             prompt = f"""
             Actúa como un Auditor de Seguridad Clínica experto. 
-            Analiza esta nota médica incompleta (SOAP) y detecta únicamente:
-            1. RED_FLAG: Signos de alarma graves que requieren acción inmediata (ej: dolor torácico, pérdida brusca de visión).
-            2. OMISSION: Pruebas o controles críticos de seguridad que faltan según lo anotado (ej: diabético sin glucemia, paciente con litiasis sin ecografía).
+            Analiza esta nota médica incompleta (SOAP) y detecta únicamente riesgos graves u omisiones críticas.
+
+            REGLAS DE RESPUESTA (IMPORTANTE):
+            - NO utilices las palabras 'omisión' o 'red flag' en la descripción.
+            - Utiliza SIEMPRE la frase "Se recomienda..." al inicio de cada observación.
+            - Ejemplo: "Se recomienda descartar infarto por dolor torácico referido" en lugar de "Red flag: dolor torácico".
+            - Ejemplo: "Se recomienda solicitar hemoglobina glicosilada" en lugar de "Omisión: falta HbA1c".
 
             REGLAS ESTRICTAS:
-            - NO sugieras diagnósticos.
+            - NO sugieras diagnósticos definitivos.
             - NO tomes decisiones por el médico.
             - Solo advierte de peligros u omisiones de seguridad.
             - Si no hay riesgos claros, devuelve un array vacío [].
@@ -79,7 +83,7 @@ class CopilotAnalyzer:
             [
               {{
                 "type": "RED_FLAG" | "OMISSION",
-                "content": "descripción corta del riesgo u omisión",
+                "content": "Se recomienda [descripción corta y profesional]",
                 "severity": "high" | "medium"
               }}
             ]

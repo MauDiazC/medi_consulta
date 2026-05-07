@@ -37,12 +37,20 @@ class SOAPClassifier:
 
         INSTRUCCIONES CRÍTICAS:
         1. FILTRADO: Elimina muletillas ("eh", "este", "bueno", "o sea") y ruidos del habla.
-        2. TERMINOLOGÍA: Transforma el lenguaje coloquial a lenguaje clínico técnico preciso (ej: "manchas rojas" -> "exantema", "dolor de panza" -> "dolor abdominal").
+        2. TERMINOLOGÍA Y ORTOGRAFÍA: 
+           - Transforma el lenguaje coloquial a lenguaje clínico técnico preciso (ej: "manchas rojas" -> "exantema", "dolor de panza" -> "dolor abdominal").
+           - Asegura un uso impecable de los ACENTOS y la gramática española.
+           - EXPANSIÓN DE ABREVIATURAS: NUNCA utilices abreviaturas en el texto final. 
+             * 'mg' debe ser 'miligramos'.
+             * 'hr' o 'hrs' debe ser 'horas'.
+             * 'mcg' debe ser 'microgramos'.
+             * 'tab' debe ser 'tabletas'.
+             * 'c/' o 'c' seguido de tiempo debe ser 'cada'.
         3. SUBJECTIVE: Incluye antecedentes, motivo de consulta y síntomas referidos.
         4. OBJECTIVE: Extrae signos vitales, hallazgos de exploración física o resultados de laboratorio mencionados.
         5. ASSESSMENT (MÁXIMA PRIORIDAD): Esta sección NO debe estar vacía. 
            - Si el médico menciona un diagnóstico, úsalo.
-           - Si el médico NO menciona un diagnóstico explícito, tú debes INFÉRIR diagnósticos presuntivos o diagnósticos diferenciales basados en los síntomas descritos en 'Subjective'.
+           - Si el médico NO menciona un diagnóstico explícito, tú debes INFERIR diagnósticos presuntivos o diagnósticos diferenciales basados en los síntomas descritos en 'Subjective'.
            - Utiliza frases como "Impresión diagnóstica de...", "A descartar...", o "Sugerente de...".
         6. PLAN: Incluye el tratamiento (fármacos, dosis, frecuencia), estudios solicitados y recomendaciones.
 
