@@ -27,12 +27,14 @@ class TTSService:
         Generates a streaming audio response from text.
         """
         if not self.client:
+            logger.error("TTS Attempted but ElevenLabs client is NOT configured.")
             raise HTTPException(
                 status_code=503, 
                 detail="Servicio de voz no configurado en el servidor."
             )
 
         try:
+            logger.info(f"Requesting TTS from ElevenLabs for text length: {len(text)}")
             # ElevenLabs async stream
             audio_stream = await self.client.generate(
                 text=text,
@@ -41,14 +43,21 @@ class TTSService:
                 stream=True
             )
             
+            chunk_count = 0
             async for chunk in audio_stream:
+                chunk_count += 1
                 yield chunk
+            
+            if chunk_count == 0:
+                logger.warning("ElevenLabs returned an EMPTY stream (0 chunks). Check API Key/Credits.")
+            else:
+                logger.info(f"TTS Stream finished successfully with {chunk_count} chunks.")
                 
         except Exception as e:
-            logger.error(f"ElevenLabs TTS Error: {str(e)}")
+            logger.error(f"ElevenLabs TTS Exception: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=500,
-                detail=f"Error generando el audio de la receta: {str(e)}"
+                detail=f"Error generando el audio: {str(e)}"
             )
 
     async def speak_prescription(self, plan_text: str) -> AsyncIterator[bytes]:
