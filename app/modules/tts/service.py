@@ -29,28 +29,19 @@ class TTSService:
             raise HTTPException(status_code=503, detail="Servicio de voz no configurado.")
 
         try:
-            # DEBUG: Inspección de métodos reales en el entorno
-            tts_client = self.client.text_to_speech
-            logger.info(f"Atributos disponibles en TTS: {[m for m in dir(tts_client) if not m.startswith('_')]}")
-
-            # Intentamos el método 'convert' que es el más común
-            # En algunas versiones asíncronas, esto retorna un generador
-            result = await tts_client.convert(
+            # Según los logs, 'stream' es el método correcto y devuelve un async_generator
+            # No se debe usar 'await' en la llamada al método, sino en la iteración.
+            audio_stream = self.client.text_to_speech.stream(
                 text=text,
                 voice_id=self.voice_id,
                 model_id="eleven_multilingual_v2"
             )
 
-            # Si el resultado es directamente bytes
-            if isinstance(result, bytes):
-                yield result
-            # Si es un generador asíncrono
-            else:
-                async for chunk in result:
-                    if chunk:
-                        yield chunk
+            async for chunk in audio_stream:
+                if chunk:
+                    yield chunk
                     
-            logger.info("Generación de audio completada.")
+            logger.info("Generación de audio completada exitosamente.")
                 
         except Exception as e:
             logger.error(f"Error en TTSService: {str(e)}", exc_info=True)
