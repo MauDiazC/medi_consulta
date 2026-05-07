@@ -35,12 +35,11 @@ class TTSService:
 
         try:
             logger.info(f"Requesting TTS from ElevenLabs for text length: {len(text)}")
-            # ElevenLabs async stream
-            audio_stream = await self.client.generate(
+            # Correct namespaced async stream for ElevenLabs v1.x+
+            audio_stream = await self.client.text_to_speech.convert_as_stream(
                 text=text,
-                voice=self.voice_id,
-                model="eleven_multilingual_v2",
-                stream=True
+                voice_id=self.voice_id,
+                model_id="eleven_multilingual_v2",
             )
             
             chunk_count = 0
