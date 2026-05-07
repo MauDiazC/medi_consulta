@@ -14,12 +14,13 @@ class TTSService:
     
     def __init__(self):
         self.api_key = settings.get("ELEVENLABS_API_KEY")
-        self.voice_id = settings.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM") # Default voice
+        self.voice_id = settings.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
         
         if not self.api_key or self.api_key == "dummy-eleven-key":
             self.client = None
-            logger.warning("ElevenLabs API Key not configured. TTS will be disabled.")
+            logger.warning("ElevenLabs API Key not configured.")
         else:
+            # En v1.0+, AsyncElevenLabs es el cliente recomendado
             self.client = AsyncElevenLabs(api_key=self.api_key)
 
     async def generate_speech_stream(self, text: str) -> AsyncIterator[bytes]:
@@ -27,49 +28,38 @@ class TTSService:
         Generates a streaming audio response from text.
         """
         if not self.client:
-            logger.error("TTS Attempted but ElevenLabs client is NOT configured.")
-            raise HTTPException(
-                status_code=503, 
-                detail="Servicio de voz no configurado en el servidor."
-            )
+            logger.error("TTS Attempted but client is NOT configured.")
+            raise HTTPException(status_code=503, detail="Servicio de voz no configurado.")
 
         try:
-            logger.info(f"Requesting TTS from ElevenLabs for text length: {len(text)}")
-            # Correct namespaced async stream for ElevenLabs v1.50+
-            audio_stream = await self.client.text_to_speech.stream(
+            logger.info(f"Iniciando generación TTS: {len(text)} caracteres")
+            
+            # En la versión 1.50+, el método más robusto suele ser .generate() directamente en el cliente
+            # o .text_to_speech.convert()
+            audio_stream = await self.client.generate(
                 text=text,
-                voice_id=self.voice_id,
-                model_id="eleven_multilingual_v2",
+                voice=self.voice_id,
+                model="eleven_multilingual_v2",
+                stream=True
             )
             
-            chunk_count = 0
             async for chunk in audio_stream:
-                chunk_count += 1
-                yield chunk
-            
-            if chunk_count == 0:
-                logger.warning("ElevenLabs returned an EMPTY stream (0 chunks). Check API Key/Credits.")
-            else:
-                logger.info(f"TTS Stream finished successfully with {chunk_count} chunks.")
+                if chunk:
+                    yield chunk
+                    
+            logger.info("TTS Stream finalizado con éxito.")
                 
         except Exception as e:
-            logger.error(f"ElevenLabs TTS Exception: {str(e)}", exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error generando el audio: {str(e)}"
-            )
+            logger.error(f"Error crítico en ElevenLabs: {str(e)}", exc_info=True)
+            # No podemos lanzar HTTPException aquí si el yield ya empezó, 
+            # pero este bloque capturará errores de inicialización.
+            raise HTTPException(status_code=500, detail=f"Error ElevenLabs: {str(e)}")
 
     async def speak_prescription(self, plan_text: str) -> AsyncIterator[bytes]:
-        """
-        Prepares and speaks a clinical plan/prescription.
-        Includes a professional intro for the patient.
-        """
         intro = (
             "Estimado paciente, a continuación escuchará su plan de cuidado y receta médica "
-            "proporcionada por su especialista en Mediconsulta. Por favor, preste atención a las "
-            "siguientes indicaciones: "
+            "proporcionada por su especialista. Por favor, preste atención: "
         )
         full_text = f"{intro} {plan_text}"
-        
         async for chunk in self.generate_speech_stream(full_text):
             yield chunk
