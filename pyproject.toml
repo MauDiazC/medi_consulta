@@ -45,6 +45,7 @@ dependencies = [
     "weasyprint>=68.1",
     "websockets>=16.0",
     "pytz>=2026.2",
+    "cloudinary>=1.44.2",
 ]
 
 [tool.pytest.ini_options]
