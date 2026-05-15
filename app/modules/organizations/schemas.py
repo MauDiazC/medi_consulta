@@ -11,6 +11,7 @@ class OrganizationUpdate(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     description: Optional[str] = None
+    logo_url: Optional[str] = None
     settings: Optional[Dict[str, Any]] = None
 
 
@@ -20,5 +21,6 @@ class OrganizationDTO(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     description: Optional[str] = None
+    logo_url: Optional[str] = None
     active: bool
     settings: Dict[str, Any] = {}

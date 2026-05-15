@@ -8,6 +8,7 @@ from .notifier import AppointmentNotifier
 from .schemas import SlotRead
 from app.modules.patients.repository import PatientRepository
 from app.modules.organizations.repository import OrganizationRepository
+from app.modules.users.repository import UserRepository
 from app.core.events import publish_event
 
 logger = logging.getLogger("appointments.service")
@@ -17,6 +18,7 @@ class AppointmentService:
         self.repo = repo
         self.notifier = AppointmentNotifier()
         self.org_repo = OrganizationRepository(repo.db)
+        self.user_repo = UserRepository(repo.db)
 
     def _format_mexico_phone(self, phone: str | None) -> str | None:
         if not phone:
@@ -96,12 +98,32 @@ class AppointmentService:
         details = await self.repo.get_full_details(appointment_id)
         if not details: return
 
-        # Get phone from metadata or fallback
+        # 1. Fetch Cascading WhatsApp credentials
+        org_id = str(details["organization_id"])
+        doctor_id = str(details["doctor_id"])
+        
+        # A. Try Doctor (User) settings first
+        doctor = await self.user_repo.get(doctor_id, org_id)
+        doctor_settings = doctor.get("settings", {}) if doctor else {}
+        whatsapp_config = doctor_settings.get("whatsapp", {})
+        
+        meta_token = whatsapp_config.get("token")
+        phone_number_id = whatsapp_config.get("phone_number_id")
+
+        # B. Fallback to Organization settings
+        if not meta_token or not phone_number_id:
+            org = await self.org_repo.get(org_id)
+            org_settings = org.get("settings", {}) if org else {}
+            org_whatsapp = org_settings.get("whatsapp", {})
+            meta_token = meta_token or org_whatsapp.get("token")
+            phone_number_id = phone_number_id or org_whatsapp.get("phone_number_id")
+
+        # 2. Get phone from metadata or fallback
         phone = details.get("metadata_json", {}).get("phone")
         if not phone:
             # Fallback to patient profile if phone is not in metadata
             patient_repo = PatientRepository(self.repo.db)
-            patient = await patient_repo.get(str(details["patient_id"]), str(details["organization_id"]))
+            patient = await patient_repo.get(str(details["patient_id"]), org_id)
             if patient:
                 phone = patient.phone_number
 
@@ -117,7 +139,13 @@ class AppointmentService:
             reminder_type=reminder_type
         )
 
-        await self.notifier.send_whatsapp(phone, ai_msg, appointment_id)
+        await self.notifier.send_whatsapp(
+            phone=phone, 
+            message=ai_msg, 
+            appointment_id=appointment_id,
+            meta_token=meta_token,
+            phone_number_id=phone_number_id
+        )
 
     async def confirm(self, appointment_id: str, confirmed: bool):
         appointment = await self.repo.get_by_id(appointment_id)
@@ -197,22 +225,48 @@ class AppointmentService:
             logger.warning(f"WhatsApp reply from patient {patient.id} but no appointment found")
             return
 
-        # 3. Extraer intención
+        # 3. Fetch Cascading WhatsApp credentials for response
+        org_id = str(appointment.organization_id)
+        doctor_id = str(appointment.doctor_id)
+
+        # A. Try Doctor (User) settings first
+        doctor = await self.user_repo.get(doctor_id, org_id)
+        doctor_settings = doctor.get("settings", {}) if doctor else {}
+        whatsapp_config = doctor_settings.get("whatsapp", {})
+        
+        meta_token = whatsapp_config.get("token")
+        phone_number_id = whatsapp_config.get("phone_number_id")
+
+        # B. Fallback to Organization settings
+        if not meta_token or not phone_number_id:
+            org = await self.org_repo.get(org_id)
+            org_settings = org.get("settings", {}) if org else {}
+            org_whatsapp = org_settings.get("whatsapp", {})
+            meta_token = meta_token or org_whatsapp.get("token")
+            phone_number_id = phone_number_id or org_whatsapp.get("phone_number_id")
+
+        # 4. Extraer intención
         intent = await self.notifier.extract_intent(message_text)
         
+        reply_msg = "He recibido tu mensaje. Un asistente humano lo revisará pronto."
         if intent == "confirm":
             appointment.patient_confirmation = True
             appointment.status = "confirmed"
             await self.repo.update(appointment)
-            await self.notifier.send_whatsapp(phone, "¡Gracias! Tu cita ha sido confirmada.", str(appointment.id))
+            reply_msg = "¡Gracias! Tu cita ha sido confirmada."
         elif intent == "cancel":
             appointment.patient_confirmation = False
             appointment.status = "cancelled"
             await self.repo.update(appointment)
-            await self.notifier.send_whatsapp(phone, "Entendido. Tu cita ha sido cancelada. Si deseas reagendar, contáctanos.", str(appointment.id))
-        else:
-            # Quizás es una duda, podrías notificar al doctor o responder algo genérico
-            await self.notifier.send_whatsapp(phone, "He recibido tu mensaje. Un asistente humano lo revisará pronto.", str(appointment.id))
+            reply_msg = "Entendido. Tu cita ha sido cancelada. Si deseas reagendar, contáctanos."
+        
+        await self.notifier.send_whatsapp(
+            phone=phone, 
+            message=reply_msg, 
+            appointment_id=str(appointment.id),
+            meta_token=meta_token,
+            phone_number_id=phone_number_id
+        )
         
         # Publicar evento para actualizar el dashboard en tiempo real
         await publish_event("appointment.updated", {

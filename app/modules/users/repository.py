@@ -1,3 +1,4 @@
+import json
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,14 +48,23 @@ class UserRepository:
         return r.mappings().first()
 
     async def update(self, user_id, org, payload):
+        settings_json = json.dumps(payload.settings) if payload.settings is not None else None
         r = await self.db.execute(
             text("""
                 UPDATE users
-                SET role = COALESCE(:role, role)
+                SET role = COALESCE(:role, role),
+                    full_name = COALESCE(:full_name, full_name),
+                    settings = COALESCE(CAST(:settings AS JSONB), settings)
                 WHERE id=CAST(:id AS UUID) AND organization_id=CAST(:org AS UUID)
                 RETURNING *
             """),
-            {"id": user_id, "org": org, "role": payload.role},
+            {
+                "id": user_id, 
+                "org": org, 
+                "role": payload.role,
+                "full_name": payload.full_name,
+                "settings": settings_json
+            },
         )
         # Commit removed for service-level atomicity
         return r.mappings().first()

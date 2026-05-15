@@ -146,6 +146,7 @@ class OrganizationRepository:
                     address = COALESCE(:address, address),
                     phone = COALESCE(:phone, phone),
                     description = COALESCE(:description, description),
+                    logo_url = COALESCE(:logo_url, logo_url),
                     settings = COALESCE(CAST(:settings AS JSONB), settings)
                 WHERE id = CAST(:id AS UUID)
                 RETURNING *
@@ -156,6 +157,7 @@ class OrganizationRepository:
                 "address": payload.address,
                 "phone": payload.phone,
                 "description": payload.description,
+                "logo_url": payload.logo_url,
                 "settings": settings_json
             },
         )

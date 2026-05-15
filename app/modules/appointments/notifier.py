@@ -56,20 +56,24 @@ class AppointmentNotifier:
             # Fallback message
             return f"Hola {patient_name}, te recordamos tu cita con el Dr. {doctor_name} el {scheduled_at}. ¡Te esperamos!"
 
-    async def send_whatsapp(self, phone: str, message: str, appointment_id: str):
+    async def send_whatsapp(self, phone: str, message: str, appointment_id: str, meta_token: str | None = None, phone_number_id: str | None = None):
         """
         Sends the message using Meta Cloud API.
+        Can receive dynamic credentials (per organization) or fallback to global settings.
         """
-        if not self.meta_token or not self.phone_number_id:
-            logger.warning("Meta Cloud API credentials not configured. Skipping WhatsApp.")
+        token = meta_token or self.meta_token
+        phone_id = phone_number_id or self.phone_number_id
+
+        if not token or not phone_id:
+            logger.warning(f"Meta Cloud API credentials not configured for appointment {appointment_id}. Skipping WhatsApp.")
             return
 
         # Meta standard: phone number without '+'
         clean_phone = phone.replace("+", "").replace(" ", "").strip()
         
-        url = f"https://graph.facebook.com/v19.0/{self.phone_number_id}/messages"
+        url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
         headers = {
-            "Authorization": f"Bearer {self.meta_token}",
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
         

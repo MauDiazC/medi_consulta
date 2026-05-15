@@ -105,6 +105,17 @@ async def list_my_assignments(
     """Lists all doctors assigned to the current authenticated staff member."""
     return await s.get_assigned_doctors(user["sub"], user["org"])
 
+
+@router.put("/me/profile")
+async def update_my_profile(
+    payload: UserUpdate,
+    user=Depends(get_current_user),
+    s=Depends(get_service),
+):
+    """Allows any authenticated user to update their own profile (name, settings)."""
+    # Force the user_id to be the one from the token
+    return await s.update(user["sub"], user["org"], payload)
+
 @router.post("/{staff_id}/assignments/{doctor_id}")
 async def assign_doctor(
     staff_id: str,
