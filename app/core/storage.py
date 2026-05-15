@@ -19,10 +19,10 @@ if _actual_cloudinary_url:
     try:
         clean_url = _actual_cloudinary_url.strip().strip('"').strip("'")
         if not clean_url.startswith("cloudinary://"):
-            # If the user forgot the prefix, we add it to be helpful
             clean_url = f"cloudinary://{clean_url}"
         
-        cloudinary.config_from_url(clean_url)
+        # Correct method to configure from URL string
+        cloudinary.config(cloudinary_url=clean_url)
         cloudinary.config(secure=True)
         logger.info("Cloudinary configured successfully via manual URL injection.")
     except Exception as e:
