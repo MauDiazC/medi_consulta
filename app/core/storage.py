@@ -1,9 +1,17 @@
-import cloudinary
-import cloudinary.uploader
-from app.core.config import settings
+import os
 import logging
+from app.core.config import settings
 
 logger = logging.getLogger("core.storage")
+
+# Defensive check: Cloudinary library crashes on import if CLOUDINARY_URL is malformed 
+# (e.g. contains quotes or spaces from Railway/dotenv).
+if os.environ.get("CLOUDINARY_URL"):
+    # Clean the environment variable before the library reads it during 'import cloudinary'
+    os.environ["CLOUDINARY_URL"] = os.environ["CLOUDINARY_URL"].strip().strip('"').strip("'")
+
+import cloudinary
+import cloudinary.uploader
 
 # Configure Cloudinary
 # Use CLOUDINARY_URL in your .env/Railway settings:
@@ -14,7 +22,7 @@ else:
     logger.warning("CLOUDINARY_URL not found in settings. File uploads will fail.")
 
 async def upload_image(file_content: bytes, folder: str = "mediconsulta") -> str | None:
-    """
+...
     Uploads a raw bytes image to Cloudinary and returns the secure URL.
     """
     try:
