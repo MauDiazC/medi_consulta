@@ -97,6 +97,14 @@ async def hard_delete_user(
 
 # --- Staff Assignments ---
 
+@router.get("/me/assignments")
+async def list_my_assignments(
+    user=Depends(get_current_user),
+    s=Depends(get_service)
+):
+    """Lists all doctors assigned to the current authenticated staff member."""
+    return await s.get_assigned_doctors(user["sub"], user["org"])
+
 @router.post("/{staff_id}/assignments/{doctor_id}")
 async def assign_doctor(
     staff_id: str,
