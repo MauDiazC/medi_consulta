@@ -4,22 +4,31 @@ from app.core.config import settings
 
 logger = logging.getLogger("core.storage")
 
-# Defensive check: Cloudinary library crashes on import if CLOUDINARY_URL is malformed 
-# (e.g. contains quotes or spaces from Railway/dotenv).
-if os.environ.get("CLOUDINARY_URL"):
-    # Clean the environment variable before the library reads it during 'import cloudinary'
-    os.environ["CLOUDINARY_URL"] = os.environ["CLOUDINARY_URL"].strip().strip('"').strip("'")
+# Defensive Hack: Cloudinary library auto-initializes on 'import' by reading CLOUDINARY_URL.
+# If the URL has any formatting issues (quotes, spaces), it raises ValueError and crashes the app.
+_actual_cloudinary_url = os.environ.get("CLOUDINARY_URL")
+if _actual_cloudinary_url:
+    # Temporarily remove it so 'import cloudinary' doesn't crash
+    os.environ.pop("CLOUDINARY_URL", None)
 
 import cloudinary
 import cloudinary.uploader
 
-# Configure Cloudinary
-# Use CLOUDINARY_URL in your .env/Railway settings:
-# CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
-if settings.get("CLOUDINARY_URL"):
-    cloudinary.config(secure=True)
+# Manual Configuration
+if _actual_cloudinary_url:
+    try:
+        clean_url = _actual_cloudinary_url.strip().strip('"').strip("'")
+        if not clean_url.startswith("cloudinary://"):
+            # If the user forgot the prefix, we add it to be helpful
+            clean_url = f"cloudinary://{clean_url}"
+        
+        cloudinary.config_from_url(clean_url)
+        cloudinary.config(secure=True)
+        logger.info("Cloudinary configured successfully via manual URL injection.")
+    except Exception as e:
+        logger.error(f"Failed to configure Cloudinary manually: {str(e)}")
 else:
-    logger.warning("CLOUDINARY_URL not found in settings. File uploads will fail.")
+    logger.warning("CLOUDINARY_URL not found. File uploads will be disabled.")
 
 async def upload_image(file_content: bytes, folder: str = "mediconsulta") -> str | None:
     """
