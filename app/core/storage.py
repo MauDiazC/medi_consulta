@@ -22,7 +22,7 @@ else:
     logger.warning("CLOUDINARY_URL not found in settings. File uploads will fail.")
 
 async def upload_image(file_content: bytes, folder: str = "mediconsulta") -> str | None:
-...
+    """
     Uploads a raw bytes image to Cloudinary and returns the secure URL.
     """
     try:
