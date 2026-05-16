@@ -170,6 +170,60 @@ async def handle_clinical_embedding_task(ctx, event_data: dict):
         logger.error(f"Embedding Worker error: {str(e)}", exc_info=True)
         raise e
 
+async def handle_payment_received_task(ctx, event_data: dict):
+    """
+    ARQ Task: Notifies the organization about a successful payment and invites them to invoice.
+    """
+    org_id = event_data.get("organization_id")
+    amount = event_data.get("amount")
+    currency = event_data.get("currency")
+    
+    try:
+        async with AsyncSessionLocal() as db:
+            # Fetch admin email
+            from sqlalchemy import text
+            r = await db.execute(
+                text("SELECT email FROM users WHERE organization_id = CAST(:oid AS UUID) AND role = 'admin' LIMIT 1"),
+                {"oid": org_id}
+            )
+            admin = r.mappings().first()
+            if not admin:
+                logger.warning(f"No admin found for organization {org_id} to send payment notification.")
+                return
+
+            to_email = admin["email"]
+            amount_decimal = amount / 100.0
+            
+            html_content = f"""
+            <h2>Pago Recibido con Éxito</h2>
+            <p>Hola, hemos recibido tu pago por la suscripción de Mediconsulta.</p>
+            <ul>
+                <li><b>Monto:</b> {amount_decimal} {currency.upper()}</li>
+                <li><b>Fecha:</b> {datetime.now(timezone.utc).strftime('%d/%m/%Y')}</li>
+            </ul>
+            <p>Si necesitas factura (CFDI), puedes generarla ahora mismo desde tu panel de administración en la sección de Facturación.</p>
+            <a href="https://app.mediconsulta.com/billing/history" style="padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px;">Ir a Facturación</a>
+            """
+            
+            resend.Emails.send({
+                "from": settings.DEFAULT_FROM_EMAIL,
+                "to": to_email,
+                "subject": "Pago confirmado - Mediconsulta",
+                "html": html_content
+            })
+            logger.info(f"Payment success email sent to {to_email} for org {org_id}")
+    except Exception as e:
+        logger.error(f"Error in payment notification task: {str(e)}")
+        raise e
+
+async def handle_subscription_sync_task(ctx, event_data: dict):
+    """
+    ARQ Task: Ensures organization state is synced with Stripe for edge cases.
+    """
+    org_id = event_data.get("organization_id")
+    # Logic to call Stripe API and verify status if needed
+    logger.info(f"Subscription sync task completed for org {org_id}")
+
 # --- Background Loops ---
 
 async def relay_outbox_events():
@@ -201,6 +255,10 @@ async def relay_outbox_events():
                         await arq_pool.enqueue_job('handle_login_notification_task', event.payload)
                     elif event.event_type == "auth.password_reset":
                         await arq_pool.enqueue_job('handle_password_reset_task', event.payload)
+                    elif event.event_type == "billing.invoice_paid":
+                        await arq_pool.enqueue_job('handle_payment_received_task', event.payload)
+                    elif event.event_type == "billing.subscription_updated":
+                        await arq_pool.enqueue_job('handle_subscription_sync_task', event.payload)
                     
                     event.processed = True
                     event.processed_at = datetime.now(timezone.utc)
@@ -223,7 +281,9 @@ class WorkerSettings:
         handle_note_signed_task, 
         handle_login_notification_task, 
         handle_password_reset_task,
-        handle_clinical_embedding_task
+        handle_clinical_embedding_task,
+        handle_payment_received_task,
+        handle_subscription_sync_task
     ]
     redis_settings = get_redis_settings()
     

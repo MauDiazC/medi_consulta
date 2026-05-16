@@ -114,15 +114,18 @@ class BillingService:
             )
             await self.org_repo.db.commit()
 
+from app.core.events import publish_event
+from app.core.models import OutboxEvent
+
+...
+
     async def _process_invoice_paid(self, invoice):
         # Find org by customer_id
-        # This requires a new repo method or a direct query
         customer_id = invoice.customer
         subscription_id = invoice.subscription
         amount = invoice.amount_paid
         currency = invoice.currency
         
-        # We find the org to link the payment
         r = await self.org_repo.db.execute(
             text("SELECT id FROM organizations WHERE stripe_customer_id = :cid"),
             {"cid": customer_id}
@@ -130,8 +133,9 @@ class BillingService:
         org = r.mappings().first()
         
         if org:
+            org_id = str(org["id"])
             await self.repo.create_payment(
-                organization_id=str(org["id"]),
+                organization_id=org_id,
                 stripe_pi=invoice.payment_intent,
                 stripe_invoice=invoice.id,
                 amount=amount,
@@ -144,10 +148,23 @@ class BillingService:
             period_end = datetime.fromtimestamp(sub.current_period_end, tz=timezone.utc)
             
             await self.org_repo.sync_subscription_status(
-                org_id=str(org["id"]),
+                org_id=org_id,
                 status="active",
                 period_end=period_end
             )
+            
+            # 3. Create Outbox Event for background notification
+            outbox_item = OutboxEvent(
+                event_type="billing.invoice_paid",
+                payload={
+                    "organization_id": org_id,
+                    "amount": amount,
+                    "currency": currency,
+                    "stripe_invoice_id": invoice.id
+                }
+            )
+            self.org_repo.db.add(outbox_item)
+            
             await self.org_repo.db.commit()
 
     async def _process_subscription_sync(self, subscription):
@@ -161,10 +178,22 @@ class BillingService:
         org = r.mappings().first()
         
         if org:
+            org_id = str(org["id"])
             await self.org_repo.sync_subscription_status(
-                org_id=str(org["id"]),
+                org_id=org_id,
                 status=status
             )
+            
+            # Create Outbox Event for sync
+            outbox_item = OutboxEvent(
+                event_type="billing.subscription_updated",
+                payload={
+                    "organization_id": org_id,
+                    "status": status
+                }
+            )
+            self.org_repo.db.add(outbox_item)
+            
             await self.org_repo.db.commit()
 
     async def request_invoice(self, org_id: str, payment_id: str, fiscal_data: dict):
