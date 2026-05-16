@@ -1,5 +1,5 @@
 import stripe
-from facturapi import Facturapi
+import facturapi
 from app.core.config import settings
 from app.modules.organizations.repository import OrganizationRepository
 from .repository import BillingRepository
@@ -14,7 +14,11 @@ logger = logging.getLogger("modules.billing.service")
 
 # Stripe & Facturapi Initialization
 stripe.api_key = settings.get("STRIPE_SECRET_KEY")
-facturapi = Facturapi(settings.get("FACTURAPI_KEY")) if settings.get("FACTURAPI_KEY") else None
+
+if settings.get("FACTURAPI_KEY"):
+    facturapi.configure(api_key=settings.get("FACTURAPI_KEY"))
+else:
+    logger.warning("FACTURAPI_KEY not found in settings. Invoicing will be disabled.")
 
 PLAN_PRICE_MAPPING = {
     "plan_medico": settings.get("STRIPE_PRICE_MEDICO"),
@@ -198,9 +202,6 @@ class BillingService:
         """
         Connects with FacturApi to generate CFDI.
         """
-        if not facturapi:
-            raise HTTPException(500, "FacturApi not configured")
-
         payment = await self.repo.get_payment(payment_id)
         if not payment or str(payment["organization_id"]) != org_id:
             raise HTTPException(404, "Payment not found")
@@ -210,17 +211,15 @@ class BillingService:
 
         try:
             # 1. Create/Update Customer in Facturapi
-            # (Simplified for now, in reality you'd search by RFC first)
             customer = facturapi.Customer.create({
                 "legal_name": fiscal_data["legal_name"],
                 "tax_id": fiscal_data["rfc"],
                 "tax_system": fiscal_data["tax_system"],
-                "email": fiscal_data.get("email"), # Could fetch from org/user
+                "email": fiscal_data.get("email"), 
                 "address": {"zip": fiscal_data["zip_code"]}
             })
 
             # 2. Create Invoice
-            # In a real app, you'd map the Stripe items to Facturapi products
             invoice = facturapi.Invoice.create({
                 "customer": customer.id,
                 "items": [{
