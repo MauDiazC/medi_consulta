@@ -5,6 +5,10 @@ from app.modules.organizations.repository import OrganizationRepository
 from .repository import BillingRepository
 import logging
 from fastapi import HTTPException
+from app.core.events import publish_event
+from app.core.models import OutboxEvent
+from sqlalchemy import text
+from datetime import datetime, timezone
 
 logger = logging.getLogger("modules.billing.service")
 
@@ -114,11 +118,6 @@ class BillingService:
             )
             await self.org_repo.db.commit()
 
-from app.core.events import publish_event
-from app.core.models import OutboxEvent
-
-...
-
     async def _process_invoice_paid(self, invoice):
         # Find org by customer_id
         customer_id = invoice.customer
@@ -144,7 +143,6 @@ from app.core.models import OutboxEvent
             )
             # Update period end
             sub = stripe.Subscription.retrieve(subscription_id)
-            from datetime import datetime, timezone
             period_end = datetime.fromtimestamp(sub.current_period_end, tz=timezone.utc)
             
             await self.org_repo.sync_subscription_status(
