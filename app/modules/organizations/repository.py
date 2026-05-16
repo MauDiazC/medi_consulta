@@ -147,7 +147,11 @@ class OrganizationRepository:
                     phone = COALESCE(:phone, phone),
                     description = COALESCE(:description, description),
                     logo_url = COALESCE(:logo_url, logo_url),
-                    settings = COALESCE(CAST(:settings AS JSONB), settings)
+                    settings = COALESCE(CAST(:settings AS JSONB), settings),
+                    stripe_customer_id = COALESCE(:stripe_customer_id, stripe_customer_id),
+                    stripe_subscription_id = COALESCE(:stripe_subscription_id, stripe_subscription_id),
+                    subscription_status = COALESCE(:subscription_status, subscription_status),
+                    subscription_period_end = COALESCE(:subscription_period_end, subscription_period_end)
                 WHERE id = CAST(:id AS UUID)
                 RETURNING *
             """),
@@ -158,11 +162,44 @@ class OrganizationRepository:
                 "phone": payload.phone,
                 "description": payload.description,
                 "logo_url": payload.logo_url,
-                "settings": settings_json
+                "settings": settings_json,
+                "stripe_customer_id": payload.stripe_customer_id,
+                "stripe_subscription_id": payload.stripe_subscription_id,
+                "subscription_status": payload.subscription_status,
+                "subscription_period_end": payload.subscription_period_end
             },
         )
         # Commit removed for service orchestration
         return r.mappings().first()
+
+    async def sync_subscription_status(
+        self, 
+        org_id: str, 
+        status: str, 
+        customer_id: str | None = None, 
+        subscription_id: str | None = None,
+        period_end: datetime | None = None
+    ):
+        """
+        Specialized atomic update for Stripe webhooks.
+        """
+        await self.db.execute(
+            text("""
+                UPDATE organizations
+                SET subscription_status = :status,
+                    stripe_customer_id = COALESCE(:customer_id, stripe_customer_id),
+                    stripe_subscription_id = COALESCE(:sub_id, stripe_subscription_id),
+                    subscription_period_end = COALESCE(:period_end, subscription_period_end)
+                WHERE id = CAST(:id AS UUID)
+            """),
+            {
+                "id": org_id,
+                "status": status,
+                "customer_id": customer_id,
+                "sub_id": subscription_id,
+                "period_end": period_end
+            }
+        )
 
     async def deactivate(self, org_id: str):
         await self.db.execute(

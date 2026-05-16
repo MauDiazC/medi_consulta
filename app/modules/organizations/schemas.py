@@ -13,6 +13,10 @@ class OrganizationUpdate(BaseModel):
     description: Optional[str] = None
     logo_url: Optional[str] = None
     settings: Optional[Dict[str, Any]] = None
+    stripe_customer_id: Optional[str] = None
+    stripe_subscription_id: Optional[str] = None
+    subscription_status: Optional[str] = None
+    subscription_period_end: Optional[datetime] = None
 
 
 class OrganizationDTO(BaseModel):
@@ -24,3 +28,7 @@ class OrganizationDTO(BaseModel):
     logo_url: Optional[str] = None
     active: bool
     settings: Dict[str, Any] = {}
+    stripe_customer_id: Optional[str] = None
+    stripe_subscription_id: Optional[str] = None
+    subscription_status: str = "trialing"
+    subscription_period_end: Optional[datetime] = None

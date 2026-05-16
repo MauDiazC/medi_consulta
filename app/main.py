@@ -29,6 +29,7 @@ from app.modules.appointments.router import router as appointments_router
 from app.modules.tts.router import router as tts_router
 from app.modules.triage.router import router as triage_router
 from app.modules.files.router import router as files_router
+from app.modules.billing.router import router as billing_router
 
 
 def create_app() -> FastAPI:
@@ -118,6 +119,7 @@ def create_app() -> FastAPI:
     app.include_router(tts_router)
     app.include_router(triage_router)
     app.include_router(files_router)
+    app.include_router(billing_router)
 
     return app
 

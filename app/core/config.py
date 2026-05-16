@@ -31,6 +31,12 @@ external_validators = [
     Validator("META_WHATSAPP_TOKEN", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
     Validator("META_PHONE_NUMBER_ID", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
     Validator("META_VERIFY_TOKEN", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator("STRIPE_SECRET_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator("STRIPE_WEBHOOK_SECRET", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator("FACTURAPI_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator("STRIPE_PRICE_MEDICO", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator("STRIPE_PRICE_CONSULTORIO", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator("STRIPE_PRICE_CLINICA", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
 ]
 
 # Nota: En Railway, si usas Supabase para Auth, DEBES poner las variables.

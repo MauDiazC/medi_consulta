@@ -610,6 +610,19 @@ wheels = [
 ]
 
 [[package]]
+name = "facturapi"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/97/fd/d7328f0ccb63c52dcd81bfae8a0e51cdfd60b08367a91bf5a1a6ac2fc9db/facturapi-1.0.0.tar.gz", hash = "sha256:9a9dbfa40522ac5433be6374f7b36483fb8b21dc2dfafe389223b18230405b99", size = 18949, upload-time = "2025-10-15T22:47:23.932Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/0f/588357a4870375790aec0b788d473220767cb7fde184e88dcb942886c212/facturapi-1.0.0-py3-none-any.whl", hash = "sha256:070014743ba8b95d3b01c25dcb20f6242505bddba7a6ee03d7c748ff3f523cba", size = 23299, upload-time = "2025-10-15T22:47:22.991Z" },
+]
+
+[[package]]
 name = "fastapi"
 version = "0.128.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1317,6 +1330,7 @@ dependencies = [
     { name = "cloudinary" },
     { name = "dynaconf" },
     { name = "elevenlabs" },
+    { name = "facturapi" },
     { name = "fastapi" },
     { name = "fastapi-limiter" },
     { name = "google-auth" },
@@ -1346,6 +1360,7 @@ dependencies = [
     { name = "rich" },
     { name = "soundfile" },
     { name = "sqlalchemy" },
+    { name = "stripe" },
     { name = "typer" },
     { name = "uvicorn" },
     { name = "weasyprint" },
@@ -1375,6 +1390,7 @@ requires-dist = [
     { name = "cloudinary", specifier = ">=1.44.2" },
     { name = "dynaconf", specifier = ">=3.2.12" },
     { name = "elevenlabs", specifier = ">=1.50.0" },
+    { name = "facturapi", specifier = ">=1.0.0" },
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "fastapi-limiter", specifier = ">=0.2.0" },
     { name = "google-auth", specifier = ">=2.35.0" },
@@ -1404,6 +1420,7 @@ requires-dist = [
     { name = "rich", specifier = ">=14.3.2" },
     { name = "soundfile", specifier = ">=0.13.1" },
     { name = "sqlalchemy", specifier = ">=2.0.46" },
+    { name = "stripe", specifier = ">=15.1.0" },
     { name = "typer", specifier = ">=0.21.1" },
     { name = "uvicorn", specifier = ">=0.40.0" },
     { name = "weasyprint", specifier = ">=68.1" },
@@ -2565,6 +2582,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/6d/90764092216fa560f6587f83bb70113a8ba510ba436c6476a2b47359057c/stevedore-5.7.0.tar.gz", hash = "sha256:31dd6fe6b3cbe921e21dcefabc9a5f1cf848cf538a1f27543721b8ca09948aa3", size = 516200, upload-time = "2026-02-20T13:27:06.765Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/69/06/36d260a695f383345ab5bbc3fd447249594ae2fa8dfd19c533d5ae23f46b/stevedore-5.7.0-py3-none-any.whl", hash = "sha256:fd25efbb32f1abb4c9e502f385f0018632baac11f9ee5d1b70f88cc5e22ad4ed", size = 54483, upload-time = "2026-02-20T13:27:05.561Z" },
+]
+
+[[package]]
+name = "stripe"
+version = "15.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/45/26/5d6f5f5beae6f1ff78213e2e6f4fbd431518dcd98733cdd39fb4ba0d01d3/stripe-15.1.0.tar.gz", hash = "sha256:24bd3b6bd0969a4841bd4d7681556a9e35e46c414a07c8590a225fbd5a878450", size = 1501673, upload-time = "2026-04-24T00:18:58.612Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/4e/fd9cb74ddf1e61fb6241e2f6799a81ef99bf6cf2e94f8812ee1cd5458e5d/stripe-15.1.0-py3-none-any.whl", hash = "sha256:bdfb556be08662a41833e6403607ebf12e0062cae4f9b93e2b89b6ba926d7c82", size = 2143199, upload-time = "2026-04-24T00:18:56.027Z" },
 ]
 
 [[package]]
