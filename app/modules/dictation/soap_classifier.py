@@ -43,12 +43,20 @@ class SOAPClassifier:
         2. TERMINOLOGÍA Y ORTOGRAFÍA:
            - Transforma el lenguaje coloquial a lenguaje clínico técnico preciso (ej: "manchas rojas" -> "exantema", "dolor de panza" -> "dolor abdominal").
            - Asegura un uso impecable de los ACENTOS y la gramática española.
-           - EXPANSIÓN DE ABREVIATURAS: NUNCA utilices abreviaturas en el texto final.
+           - EXPANSIÓN DE ABREVIATURAS: NUNCA utilices abreviaturas en el texto final bajo ninguna circunstancia. Escribe las palabras completas para facilitar la lectura por voz:
              * 'mg' debe ser 'miligramos'.
-             * 'hr' o 'hrs' debe ser 'horas'.
+             * 'ml' debe ser 'mililitros'.
+             * 'hr' o 'hrs' o 'h' debe ser 'horas'.
+             * 'min' debe ser 'minutos'.
              * 'mcg' debe ser 'microgramos'.
-             * 'tab' debe ser 'tabletas'.
+             * 'g' debe ser 'gramos'.
+             * 'tab' o 'tabs' debe ser 'tabletas'.
+             * 'caps' debe ser 'cápsulas'.
+             * 'cda' debe ser 'cucharadas'.
+             * 'cdita' debe ser 'cucharaditas'.
              * 'c/' o 'c' seguido de tiempo debe ser 'cada'.
+             * 'amp' debe ser 'ampolletas'.
+             * 'UI' o 'u' debe ser 'unidades'.
         3. SUBJECTIVE: Incluye antecedentes, motivo de consulta y síntomas referidos.
         4. OBJECTIVE: Extrae signos vitales, hallazgos de exploración física o resultados de laboratorio mencionados.
         5. ASSESSMENT (MÁXIMA PRIORIDAD): Esta sección NO debe estar vacía.
@@ -104,6 +112,6 @@ class SOAPClassifier:
             return {
                 "subjective": text,
                 "objective": "",
-                "assessment": f"Error de IA (2.5): {str(e)[:40]}",
+                "assessment": f"Error de IA (3.5): {str(e)[:40]}",
                 "plan": "Reintente o complete manualmente.",
             }

@@ -31,9 +31,14 @@ class GoogleSpeechProvider(SpeechProvider):
             return ""
 
         try:
-            prompt = "Transcribe exactamente lo que se dice en este audio médico. No añadas nada más."
-
-            # Using the latest 2.5 model confirmed in your account
+            prompt = (
+                "Transcribe exactamente lo que se dice en este audio médico. "
+                "IMPORTANTE: NUNCA utilices abreviaciones de unidades médicas, de tiempo o de medida en la transcripción; "
+                "escribe las palabras completas (por ejemplo: escribe 'horas' en lugar de 'hrs' o 'h', 'miligramos' en lugar de 'mg', "
+                "'mililitros' en lugar de 'ml', 'minutos' en lugar de 'min', 'gramos' en lugar de 'g', 'cucharadas' en lugar de 'cda', "
+                "'cucharaditas' en lugar de 'cdita', 'cápsulas' en lugar de 'caps', 'tabletas' en lugar de 'tab', 'cada' en lugar de 'c/'). "
+                "No añadas nada más."
+            )
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
                 model="gemini-3.5-flash",
