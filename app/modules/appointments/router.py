@@ -273,26 +273,35 @@ async def get_appointment_notifications(
     return await service.get_notifications_for_appointment(appointment_id)
 
 
-@router.get("/public/doctor/{doctor_id}/availability", response_model=list[SlotRead])
+@router.get("/public/doctor/{doctor_id_or_slug}/availability", response_model=list[SlotRead])
 async def get_public_availability(
-    doctor_id: str,
+    doctor_id_or_slug: str,
     target_date: date_type | None = None,
     service: AppointmentService = Depends(get_service),
 ):
-    """Obtiene la disponibilidad de bloques de un médico de forma pública."""
+    """Obtiene la disponibilidad de bloques de un médico de forma pública usando su ID o slug."""
     from uuid import UUID
-    try:
-        UUID(str(doctor_id))
-    except ValueError:
-        raise HTTPException(400, "doctor_id debe ser un UUID válido") from None
 
     from sqlalchemy import text
-    stmt = text("SELECT organization_id FROM users WHERE id = CAST(:doc_id AS UUID) LIMIT 1")
-    result = await service.repo.db.execute(stmt, {"doc_id": doctor_id})
+
+    is_uuid = False
+    try:
+        UUID(doctor_id_or_slug)
+        is_uuid = True
+    except ValueError:
+        pass
+
+    if is_uuid:
+        stmt = text("SELECT id, organization_id FROM users WHERE id = CAST(:val AS UUID) LIMIT 1")
+    else:
+        stmt = text("SELECT id, organization_id FROM users WHERE slug = :val LIMIT 1")
+
+    result = await service.repo.db.execute(stmt, {"val": doctor_id_or_slug})
     doctor = result.mappings().first()
     if not doctor:
         raise HTTPException(404, "Médico no encontrado")
 
+    doctor_id = str(doctor["id"])
     org_id = str(doctor["organization_id"])
     if not target_date:
         tz = pytz.timezone("America/Mexico_City")

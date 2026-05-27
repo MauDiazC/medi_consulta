@@ -16,12 +16,17 @@ class UserService:
                 detail=f"El correo {payload.email} ya está registrado.",
             )
 
+        slug = None
+        if payload.role == "doctor":
+            slug = await self.repo.generate_unique_slug(payload.full_name)
+
         user = await self.repo.create(
             payload.email,
             hash_password(payload.password),
             payload.full_name,
             payload.role,
             payload.organization_id,
+            slug=slug,
         )
 
         # 2. Persist to DB
@@ -38,6 +43,26 @@ class UserService:
         return user
 
     async def update(self, user_id, org, payload):
+        from sqlalchemy import text
+        current_user = await self.repo.get(user_id, org)
+        if not current_user:
+            raise HTTPException(404, "User not found")
+
+        if payload.slug is not None:
+            import re
+            cleaned_slug = payload.slug.lower().strip()
+            cleaned_slug = re.sub(r'[^a-z0-9]+', '-', cleaned_slug).strip('-')
+            if not cleaned_slug:
+                raise HTTPException(400, "El slug no puede estar vacío o contener solo caracteres especiales")
+
+            stmt = text("SELECT id FROM users WHERE slug = :slug AND id != CAST(:exclude_id AS UUID) LIMIT 1")
+            chk = await self.repo.db.execute(stmt, {"slug": cleaned_slug, "exclude_id": user_id})
+            if chk.first():
+                raise HTTPException(400, f"El enlace público '{cleaned_slug}' ya está en uso por otro médico.")
+            payload.slug = cleaned_slug
+        elif payload.full_name is not None and current_user.get("role") == "doctor" and not current_user.get("slug"):
+            payload.slug = await self.repo.generate_unique_slug(payload.full_name, exclude_user_id=user_id)
+
         user = await self.repo.update(user_id, org, payload)
         if not user:
             raise HTTPException(404, "User not found")

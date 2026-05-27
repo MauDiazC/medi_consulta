@@ -15,6 +15,7 @@ class UserUpdate(BaseModel):
     role: str | None = None
     full_name: str | None = None
     settings: dict[str, Any] | None = None
+    slug: str | None = None
 
 
 class UserDTO(BaseModel):
@@ -25,3 +26,4 @@ class UserDTO(BaseModel):
     organization_id: str
     active: bool
     settings: dict[str, Any] = {}
+    slug: str | None = None
