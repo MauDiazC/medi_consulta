@@ -37,4 +37,4 @@ Este proyecto sigue una arquitectura modular estricta. Todas las modificaciones 
 - **Modular Domain Architecture:** Todo lo relacionado a citas vive en `app/modules/appointments`.
 - **Async-first:** Prohibido el uso de IO bloqueante.
 - **Event-driven:** El cambio de estado de una cita debe publicar un evento `appointment.updated`.
-- **Gemini Model:** Usar preferentemente la familia **Flash (2.5)** para tareas de baja latencia.
+- **Gemini Model:** Usar preferentemente la familia **Flash (3.5)** para tareas de baja latencia.

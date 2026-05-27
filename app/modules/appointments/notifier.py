@@ -57,7 +57,7 @@ class AppointmentNotifier:
             # Gemini execution with Gemini 2.5 Flash
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model="gemini-2.5-flash",
+                model="gemini-3.5-flash",
                 contents=prompt,
             )
             return response.text.strip()
@@ -154,7 +154,7 @@ class AppointmentNotifier:
         try:
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model="gemini-2.5-flash",
+                model="gemini-3.5-flash",
                 contents=prompt,
             )
             result = response.text.strip().lower()

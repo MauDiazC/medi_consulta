@@ -74,7 +74,7 @@ class SOAPClassifier:
         try:
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model="gemini-2.5-flash",
+                model="gemini-3.5-flash",
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     temperature=0.1, response_mime_type="application/json"

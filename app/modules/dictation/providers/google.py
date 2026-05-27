@@ -36,7 +36,7 @@ class GoogleSpeechProvider(SpeechProvider):
             # Using the latest 2.5 model confirmed in your account
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model="gemini-2.5-flash",
+                model="gemini-3.5-flash",
                 contents=[
                     prompt,
                     genai.types.Part.from_bytes(data=audio, mime_type="audio/wav"),
