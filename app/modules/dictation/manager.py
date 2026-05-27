@@ -6,7 +6,6 @@ from .trigger_engine import TriggerEngine
 
 
 class DictationManager:
-
     def __init__(self):
         self.stt = GoogleSpeechProvider()
 
@@ -28,18 +27,12 @@ class DictationManager:
 
         self.buffer.append(text)
 
-        if not self.trigger.should_trigger(
-            self.buffer
-        ):
-            return {
-                "transcript_partial": text
-            }
+        if not self.trigger.should_trigger(self.buffer):
+            return {"transcript_partial": text}
 
         sentence = self.buffer.flush()
 
-        classified = await self.classifier.classify(
-            sentence
-        )
+        classified = await self.classifier.classify(sentence)
 
         soap = self.streamer.update(
             classified["section"],

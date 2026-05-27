@@ -1,6 +1,5 @@
-import os
 import logging
-from app.core.config import settings
+import os
 
 logger = logging.getLogger("core.storage")
 
@@ -20,7 +19,7 @@ if _actual_cloudinary_url:
         clean_url = _actual_cloudinary_url.strip().strip('"').strip("'")
         if not clean_url.startswith("cloudinary://"):
             clean_url = f"cloudinary://{clean_url}"
-        
+
         # Correct method to configure from URL string
         cloudinary.config(cloudinary_url=clean_url)
         cloudinary.config(secure=True)
@@ -30,6 +29,7 @@ if _actual_cloudinary_url:
 else:
     logger.warning("CLOUDINARY_URL not found. File uploads will be disabled.")
 
+
 async def upload_image(file_content: bytes, folder: str = "mediconsulta") -> str | None:
     """
     Uploads a raw bytes image to Cloudinary and returns the secure URL.
@@ -37,11 +37,12 @@ async def upload_image(file_content: bytes, folder: str = "mediconsulta") -> str
     try:
         # We use asyncio.to_thread because the cloudinary SDK is synchronous
         import asyncio
+
         result = await asyncio.to_thread(
             cloudinary.uploader.upload,
             file_content,
             folder=folder,
-            resource_type="image"
+            resource_type="image",
         )
         return result.get("secure_url")
     except Exception as e:

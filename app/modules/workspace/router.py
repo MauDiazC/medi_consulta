@@ -1,14 +1,11 @@
-
-import redis.asyncio as redis
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
-from app.core.locks import acquire_encounter_lock, release_encounter_lock
-from app.core.config import settings
 from app.core.events import get_redis
+from app.core.locks import acquire_encounter_lock, release_encounter_lock
 
 from .repository import WorkspaceRepository
 from .service import WorkspaceService
@@ -25,9 +22,7 @@ async def encounter_workspace(
     db: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    service = WorkspaceService(
-        WorkspaceRepository(db)
-    )
+    service = WorkspaceService(WorkspaceRepository(db))
 
     return await service.encounter_workspace(
         encounter_id,
@@ -67,9 +62,7 @@ async def workspace_stream(encounter_id: str):
             return
 
         pubsub = r.pubsub()
-        await pubsub.subscribe(
-            f"workspace_updates:{encounter_id}"
-        )
+        await pubsub.subscribe(f"workspace_updates:{encounter_id}")
 
         async for message in pubsub.listen():
             if message["type"] == "message":

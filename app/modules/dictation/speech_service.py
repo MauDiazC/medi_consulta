@@ -1,7 +1,9 @@
 import logging
+
 from .providers.google import GoogleSpeechProvider
 
 logger = logging.getLogger("dictation.speech_service")
+
 
 class SpeechService:
     def __init__(self):

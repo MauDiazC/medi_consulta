@@ -1,7 +1,10 @@
-from sqlalchemy import select, and_, text
+from datetime import UTC, date, datetime, timedelta
+
+from sqlalchemy import and_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta, timezone, date
+
 from .models import Appointment
+
 
 class AppointmentRepository:
     def __init__(self, db: AsyncSession):
@@ -24,8 +27,8 @@ class AppointmentRepository:
         Fetches an appointment by ID with patient names for responses.
         """
         stmt = text("""
-            SELECT 
-                a.*, 
+            SELECT
+                a.*,
                 p.first_name as patient_first_name,
                 p.last_name as patient_last_name,
                 EXISTS(SELECT 1 FROM triage t WHERE t.appointment_id = a.id) as is_triage
@@ -37,21 +40,21 @@ class AppointmentRepository:
         return result.mappings().first()
 
     async def list_by_org(
-        self, 
-        org_id: str, 
-        status: str | None = None, 
-        start_date: datetime | None = None, 
+        self,
+        org_id: str,
+        status: str | None = None,
+        start_date: datetime | None = None,
         end_date: datetime | None = None,
         patient_id: str | None = None,
-        doctor_ids: list[str] | None = None
+        doctor_ids: list[str] | None = None,
     ):
         """
         Lists appointments for an organization with patient names.
         Optionally filters by authorized doctor IDs.
         """
         query = """
-            SELECT 
-                a.*, 
+            SELECT
+                a.*,
                 p.first_name as patient_first_name,
                 p.last_name as patient_last_name,
                 EXISTS(SELECT 1 FROM triage t WHERE t.appointment_id = a.id) as is_triage
@@ -64,44 +67,48 @@ class AppointmentRepository:
         if status:
             query += " AND a.status = :status"
             params["status"] = status
-        
+
         if start_date:
             query += " AND a.scheduled_at >= :start_date"
             params["start_date"] = start_date
-            
+
         if end_date:
             query += " AND a.scheduled_at <= :end_date"
             params["end_date"] = end_date
-            
+
         if patient_id:
             query += " AND a.patient_id = :patient_id"
             params["patient_id"] = patient_id
 
         if doctor_ids is not None:
             if not doctor_ids:
-                return [] # No access to any doctor
+                return []  # No access to any doctor
             query += " AND a.doctor_id = ANY(:doctor_ids)"
             params["doctor_ids"] = doctor_ids
 
         query += " ORDER BY a.scheduled_at ASC"
-        
+
         result = await self.db.execute(text(query), params)
         return result.mappings().all()
 
-    async def get_doctor_appointments_by_date(self, org_id: str, doctor_id: str, target_date: date):
+    async def get_doctor_appointments_by_date(
+        self, org_id: str, doctor_id: str, target_date: date
+    ):
         """
         Fetches all non-cancelled appointments for a doctor on a specific date.
         """
-        start_dt = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-        end_dt = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
-        
+        start_dt = datetime.combine(target_date, datetime.min.time()).replace(
+            tzinfo=UTC
+        )
+        end_dt = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=UTC)
+
         stmt = select(Appointment).where(
             and_(
                 Appointment.organization_id == org_id,
                 Appointment.doctor_id == doctor_id,
                 Appointment.scheduled_at >= start_dt,
                 Appointment.scheduled_at <= end_dt,
-                Appointment.status != "cancelled"
+                Appointment.status != "cancelled",
             )
         )
         result = await self.db.execute(stmt)
@@ -115,7 +122,7 @@ class AppointmentRepository:
             and_(
                 Appointment.doctor_id == doctor_id,
                 Appointment.scheduled_at == scheduled_at,
-                Appointment.status != "cancelled"
+                Appointment.status != "cancelled",
             )
         )
         result = await self.db.execute(stmt)
@@ -130,17 +137,17 @@ class AppointmentRepository:
         """
         Poll appointments that are within the target window and haven't sent the specified reminder.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         target_time = now + timedelta(minutes=window_minutes)
-        
+
         # We look for appointments scheduled in the next 'window_minutes'
         # reminder_field can be 'reminder_8h_sent' or 'reminder_15m_sent'
         stmt = select(Appointment).where(
             and_(
                 Appointment.status == "scheduled",
-                getattr(Appointment, reminder_field) == False,
+                not getattr(Appointment, reminder_field),
                 Appointment.scheduled_at <= target_time,
-                Appointment.scheduled_at > now
+                Appointment.scheduled_at > now,
             )
         )
         result = await self.db.execute(stmt)
@@ -150,9 +157,12 @@ class AppointmentRepository:
         """
         Busca la cita más reciente (ya sea futura o pasada cercana) para un paciente.
         """
-        stmt = select(Appointment).where(
-            Appointment.patient_id == patient_id
-        ).order_by(Appointment.scheduled_at.desc()).limit(1)
+        stmt = (
+            select(Appointment)
+            .where(Appointment.patient_id == patient_id)
+            .order_by(Appointment.scheduled_at.desc())
+            .limit(1)
+        )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -161,8 +171,8 @@ class AppointmentRepository:
         Joins with patients and doctors to get names for the AI.
         """
         stmt = text("""
-            SELECT 
-                a.*, 
+            SELECT
+                a.*,
                 p.first_name as patient_name,
                 u.full_name as doctor_name
             FROM appointments a

@@ -2,7 +2,6 @@ from .analyzer import CopilotAnalyzer
 
 
 class CopilotService:
-
     def __init__(self, repo):
         self.repo = repo
         self.analyzer = CopilotAnalyzer()

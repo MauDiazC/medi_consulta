@@ -1,9 +1,8 @@
 import json
 from datetime import datetime, timedelta
 
-import redis.asyncio as redis
 from fastapi import HTTPException
-from app.core.config import settings
+
 from app.core.events import get_redis
 
 LOCK_TTL = 120  # seconds
@@ -32,10 +31,7 @@ async def acquire_encounter_lock(
 
     payload = {
         "doctor_id": doctor_id,
-        "expires_at": (
-            datetime.utcnow() +
-            timedelta(seconds=LOCK_TTL)
-        ).isoformat(),
+        "expires_at": (datetime.utcnow() + timedelta(seconds=LOCK_TTL)).isoformat(),
     }
 
     await r.set(

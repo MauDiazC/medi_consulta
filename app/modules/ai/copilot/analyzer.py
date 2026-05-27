@@ -1,15 +1,18 @@
 import json
 import logging
+
 from google import genai
+
 from app.core.config import settings
 
 logger = logging.getLogger("copilot.analyzer")
 
+
 class CopilotAnalyzer:
     """
     Expert clinical safety analyzer.
-    Focuses strictly on identifying Red Flags (high risk signs) 
-    and Clinical Omissions (missing safety steps) without 
+    Focuses strictly on identifying Red Flags (high risk signs)
+    and Clinical Omissions (missing safety steps) without
     influencing or making diagnostic decisions.
     """
 
@@ -19,7 +22,9 @@ class CopilotAnalyzer:
             self.client = genai.Client(api_key=self.api_key)
         else:
             self.client = None
-            logger.warning("GOOGLE_AI_API_KEY not configured. Safety analysis will be basic.")
+            logger.warning(
+                "GOOGLE_AI_API_KEY not configured. Safety analysis will be basic."
+            )
 
     async def analyze(self, draft: dict) -> list:
         """
@@ -30,18 +35,22 @@ class CopilotAnalyzer:
 
         # 1. Structural Basic Validations (Rule-based)
         if not draft.get("assessment"):
-            suggestions.append({
-                "type": "OMISSION",
-                "content": "Se recomienda completar la sección de impresión diagnóstica (Assessment).",
-                "severity": "medium"
-            })
+            suggestions.append(
+                {
+                    "type": "OMISSION",
+                    "content": "Se recomienda completar la sección de impresión diagnóstica (Assessment).",
+                    "severity": "medium",
+                }
+            )
 
         if not draft.get("plan"):
-            suggestions.append({
-                "type": "OMISSION",
-                "content": "Se recomienda definir un plan de tratamiento o seguimiento para el paciente.",
-                "severity": "medium"
-            })
+            suggestions.append(
+                {
+                    "type": "OMISSION",
+                    "content": "Se recomienda definir un plan de tratamiento o seguimiento para el paciente.",
+                    "severity": "medium",
+                }
+            )
 
         # 2. Clinical Intelligence (LLM-based)
         if self.client and (draft.get("subjective") or draft.get("objective")):
@@ -57,7 +66,7 @@ class CopilotAnalyzer:
         try:
             # Contextual prompt for Safety Only
             prompt = f"""
-            Actúa como un Auditor de Seguridad Clínica experto. 
+            Actúa como un Auditor de Seguridad Clínica experto.
             Analiza esta nota médica incompleta (SOAP) y detecta únicamente riesgos graves u omisiones críticas.
 
             REGLAS DE RESPUESTA (IMPORTANTE):
@@ -74,10 +83,10 @@ class CopilotAnalyzer:
             - El idioma debe ser Español profesional.
 
             NOTA MÉDICA:
-            Subjetivo: {draft.get('subjective', '')}
-            Objetivo: {draft.get('objective', '')}
-            Impresión: {draft.get('assessment', '')}
-            Plan: {draft.get('plan', '')}
+            Subjetivo: {draft.get("subjective", "")}
+            Objetivo: {draft.get("objective", "")}
+            Impresión: {draft.get("assessment", "")}
+            Plan: {draft.get("plan", "")}
 
             Responde EXCLUSIVAMENTE en formato JSON con esta estructura:
             [
@@ -94,7 +103,7 @@ class CopilotAnalyzer:
                 config=genai.types.GenerateContentConfig(
                     response_mime_type="application/json"
                 ),
-                contents=[prompt]
+                contents=[prompt],
             )
 
             if not response.text:

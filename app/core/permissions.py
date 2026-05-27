@@ -11,4 +11,5 @@ def require_role(*roles: str):
                 detail="Insufficient permissions",
             )
         return user
+
     return checker

@@ -2,7 +2,6 @@ from fastapi import HTTPException
 
 
 class SessionService:
-
     def __init__(self, repo):
         self.repo = repo
 
@@ -11,15 +10,12 @@ class SessionService:
         encounter_id,
         user_id,
     ):
-        active = await self.repo.active_session(
-            encounter_id
-        )
+        active = await self.repo.active_session(encounter_id)
 
         if active and active["user_id"] != user_id:
             raise HTTPException(
                 409,
-                "Encounter already opened "
-                "by another user",
+                "Encounter already opened by another user",
             )
 
         if active:

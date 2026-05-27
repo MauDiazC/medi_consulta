@@ -2,7 +2,6 @@ from sqlalchemy import text
 
 
 class RAGRepository:
-
     def __init__(self, db):
         self.db = db
 
@@ -12,15 +11,18 @@ class RAGRepository:
         embedding,
     ):
 
-        r = await self.db.execute(text("""
+        r = await self.db.execute(
+            text("""
         SELECT note_id
         FROM clinical_note_embeddings
         WHERE patient_id=:pid
         ORDER BY embedding <-> :emb
         LIMIT 5
-        """), {
-            "pid": patient_id,
-            "emb": embedding,
-        })
+        """),
+            {
+                "pid": patient_id,
+                "emb": embedding,
+            },
+        )
 
         return r.mappings().all()

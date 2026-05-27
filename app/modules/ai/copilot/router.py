@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from google import genai
-from app.core.config import settings
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.permissions import require_role
 
@@ -16,18 +16,14 @@ router = APIRouter(
 
 
 def get_service(db: AsyncSession = Depends(get_db)):
-    return CopilotService(
-        CopilotRepository(db)
-    )
+    return CopilotService(CopilotRepository(db))
 
 
 @router.post("/analyze/{note_id}")
 async def analyze_note(
     note_id: str,
     payload: dict,
-    user=Depends(
-        require_role("doctor")
-    ),
+    user=Depends(require_role("doctor")),
     service=Depends(get_service),
 ):
     return await service.process_snapshot(
@@ -38,16 +34,16 @@ async def analyze_note(
 
 
 @router.get("/diag/models")
-async def list_available_models(
-    user=Depends(require_role("admin"))
-):
+async def list_available_models(user=Depends(require_role("admin"))):
     """
     Diagnostic endpoint to see which Gemini models are active for this API Key.
     Restricted to Super Admin (via email check).
     """
     if user.get("email") != "mdiazcabr@gmail.com":
-        raise HTTPException(status_code=403, detail="Only global admins can access AI diagnostics.")
-        
+        raise HTTPException(
+            status_code=403, detail="Only global admins can access AI diagnostics."
+        )
+
     api_key = settings.get("GOOGLE_AI_API_KEY")
     if not api_key:
         return {"error": "GOOGLE_AI_API_KEY not found"}
@@ -58,10 +54,11 @@ async def list_available_models(
         models = client.models.list()
         return {
             "api_key_fragment": f"{api_key[:5]}...",
-            "models": [m.name for m in models]
+            "models": [m.name for m in models],
         }
     except Exception as e:
         import traceback
+
         return {"error": str(e), "trace": traceback.format_exc()}
 
 

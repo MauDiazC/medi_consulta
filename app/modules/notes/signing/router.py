@@ -1,18 +1,18 @@
-from fastapi import APIRouter, Depends, File, UploadFile, Header, HTTPException, Body, Form
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
-from app.core.permissions import require_role
 from app.core.pagination import pagination_params
-from app.modules.notes.signing.service import SigningApplicationService
+from app.core.permissions import require_role
 from app.modules.notes.repository import ClinicalNoteRepository
-from app.modules.notes.signing.models import NoteSnapshot
 from app.modules.notes.signing.identity_repository import ProfessionalIdentityRepository
+from app.modules.notes.signing.models import NoteSnapshot
 from app.modules.notes.signing.schemas import ProfessionalIdentitySetup
+from app.modules.notes.signing.service import SigningApplicationService
 
 router = APIRouter(prefix="/notes/signing", tags=["signing"])
+
 
 @router.post("/professional-identity")
 async def setup_professional_identity(
@@ -30,14 +30,15 @@ async def setup_professional_identity(
         org_id=user["org"],
         public_key_pem=payload.public_key_pem,
         license_number=payload.license_number,
-        specialty=payload.specialty
+        specialty=payload.specialty,
     )
     return {"message": "Professional identity successfully registered."}
+
 
 @router.post("/professional-identity/upload")
 async def upload_professional_identity(
     license_number: str = Form(...),
-    specialty: Optional[str] = Form(None),
+    specialty: str | None = Form(None),
     public_key_file: UploadFile = File(...),
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -47,16 +48,17 @@ async def upload_professional_identity(
     Allows uploading the .pem public key directly.
     """
     public_pem = (await public_key_file.read()).decode()
-    
+
     repo = ProfessionalIdentityRepository(db)
     await repo.register(
         user_id=user["sub"],
         org_id=user["org"],
         public_key_pem=public_pem,
         license_number=license_number,
-        specialty=specialty
+        specialty=specialty,
     )
     return {"message": "Professional identity file successfully registered."}
+
 
 @router.get("/professional-identity")
 async def list_identities(
@@ -68,6 +70,7 @@ async def list_identities(
     repo = ProfessionalIdentityRepository(db)
     return await repo.list_by_org(user["org"], page.limit, page.offset)
 
+
 @router.get("/professional-identity/me")
 async def get_my_identity(
     user=Depends(get_current_user),
@@ -77,10 +80,14 @@ async def get_my_identity(
     repo = ProfessionalIdentityRepository(db)
     identity = await repo.get_by_user(user["sub"], user["org"])
     if not identity:
-        raise HTTPException(status_code=404, detail="Identity not found. Please register first.")
+        raise HTTPException(
+            status_code=404, detail="Identity not found. Please register first."
+        )
     return identity
 
+
 # --- Administrative Identity Management ---
+
 
 @router.patch("/professional-identity/{user_id}/deactivate")
 async def deactivate_user_identity(
@@ -93,10 +100,11 @@ async def deactivate_user_identity(
     updated = await repo.deactivate(user_id, user["org"])
     if not updated:
         raise HTTPException(
-            status_code=404, 
-            detail="Professional identity not found for this user in your organization."
+            status_code=404,
+            detail="Professional identity not found for this user in your organization.",
         )
     return {"status": "deactivated", "user_id": user_id}
+
 
 @router.patch("/professional-identity/{user_id}/activate")
 async def activate_user_identity(
@@ -109,12 +117,14 @@ async def activate_user_identity(
     updated = await repo.activate(user_id, user["org"])
     if not updated:
         raise HTTPException(
-            status_code=404, 
-            detail="Professional identity not found for this user in your organization."
+            status_code=404,
+            detail="Professional identity not found for this user in your organization.",
         )
     return {"status": "activated", "user_id": user_id}
 
+
 # --- Personal Identity Management ---
+
 
 @router.patch("/professional-identity/me/deactivate")
 async def deactivate_my_identity(
@@ -125,6 +135,7 @@ async def deactivate_my_identity(
     repo = ProfessionalIdentityRepository(db)
     await repo.deactivate(user["sub"], user["org"])
     return {"status": "deactivated"}
+
 
 @router.patch("/professional-identity/me/activate")
 async def activate_my_identity(
@@ -162,11 +173,12 @@ async def sign_note_endpoint(
     signing_app = SigningApplicationService(db)
     return await signing_app.execute_signing(
         note=note,
-        version=note, # Pass full note data (contains subjective, objective, etc)
+        version=note,  # Pass full note data (contains subjective, objective, etc)
         signer_id=user["sub"],
         private_key_pem=private_pem,
-        idempotency_key=x_idempotency_key
+        idempotency_key=x_idempotency_key,
     )
+
 
 @router.get("/snapshot/{snapshot_id}")
 async def get_snapshot_endpoint(
@@ -178,6 +190,7 @@ async def get_snapshot_endpoint(
     if not snapshot:
         raise HTTPException(404, "Snapshot not found")
     return snapshot
+
 
 @router.post("/seal/{encounter_id}")
 async def seal_encounter_endpoint(
@@ -199,5 +212,5 @@ async def seal_encounter_endpoint(
         encounter_id=encounter_id,
         signer_id=user["sub"],
         private_key_pem=private_pem,
-        idempotency_key=x_idempotency_key
+        idempotency_key=x_idempotency_key,
     )

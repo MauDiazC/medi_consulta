@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel
 
 
 class ClinicalSessionCreate(BaseModel):
@@ -8,7 +8,7 @@ class ClinicalSessionCreate(BaseModel):
 
 
 class ClinicalSessionUpdate(BaseModel):
-    name: Optional[str] = None
+    name: str | None = None
 
 
 class ClinicalSessionDTO(BaseModel):
@@ -17,5 +17,5 @@ class ClinicalSessionDTO(BaseModel):
     organization_id: str
     is_active: bool
     created_at: datetime
-    closed_at: Optional[datetime] = None
-    status: Optional[str] = "open"
+    closed_at: datetime | None = None
+    status: str | None = "open"

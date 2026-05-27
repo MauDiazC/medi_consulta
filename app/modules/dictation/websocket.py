@@ -17,12 +17,9 @@ async def dictation_ws(
 
     try:
         while True:
-
             audio = await websocket.receive_bytes()
 
-            result = await manager.process_audio(
-                audio
-            )
+            result = await manager.process_audio(audio)
 
             await websocket.send_json(result)
 

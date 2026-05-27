@@ -1,17 +1,20 @@
+import asyncio
 import json
 import logging
+
 from google import genai
+
 from app.core.config import settings
-import asyncio
 
 logger = logging.getLogger("dictation.soap")
+
 
 class SOAPClassifier:
     """
     Expert Clinical Intelligence Layer.
     Extracts and organizes medical dictation into a full SOAP structure.
     """
-    
+
     def __init__(self):
         if settings.get("GOOGLE_AI_API_KEY"):
             self.client = genai.Client(api_key=settings.GOOGLE_AI_API_KEY)
@@ -28,19 +31,19 @@ class SOAPClassifier:
                 "subjective": text or "",
                 "objective": "",
                 "assessment": "",
-                "plan": ""
+                "plan": "",
             }
 
         prompt = f"""
-        Actúa como un transcriptor médico experto y asistente clínico de alto nivel. 
+        Actúa como un transcriptor médico experto y asistente clínico de alto nivel.
         Tu objetivo es procesar un dictado de voz y organizarlo en una estructura SOAP profesional.
 
         INSTRUCCIONES CRÍTICAS:
         1. FILTRADO: Elimina muletillas ("eh", "este", "bueno", "o sea") y ruidos del habla.
-        2. TERMINOLOGÍA Y ORTOGRAFÍA: 
+        2. TERMINOLOGÍA Y ORTOGRAFÍA:
            - Transforma el lenguaje coloquial a lenguaje clínico técnico preciso (ej: "manchas rojas" -> "exantema", "dolor de panza" -> "dolor abdominal").
            - Asegura un uso impecable de los ACENTOS y la gramática española.
-           - EXPANSIÓN DE ABREVIATURAS: NUNCA utilices abreviaturas en el texto final. 
+           - EXPANSIÓN DE ABREVIATURAS: NUNCA utilices abreviaturas en el texto final.
              * 'mg' debe ser 'miligramos'.
              * 'hr' o 'hrs' debe ser 'horas'.
              * 'mcg' debe ser 'microgramos'.
@@ -48,7 +51,7 @@ class SOAPClassifier:
              * 'c/' o 'c' seguido de tiempo debe ser 'cada'.
         3. SUBJECTIVE: Incluye antecedentes, motivo de consulta y síntomas referidos.
         4. OBJECTIVE: Extrae signos vitales, hallazgos de exploración física o resultados de laboratorio mencionados.
-        5. ASSESSMENT (MÁXIMA PRIORIDAD): Esta sección NO debe estar vacía. 
+        5. ASSESSMENT (MÁXIMA PRIORIDAD): Esta sección NO debe estar vacía.
            - Si el médico menciona un diagnóstico, úsalo.
            - Si el médico NO menciona un diagnóstico explícito, tú debes INFERIR diagnósticos presuntivos o diagnósticos diferenciales basados en los síntomas descritos en 'Subjective'.
            - Utiliza frases como "Impresión diagnóstica de...", "A descartar...", o "Sugerente de...".
@@ -71,33 +74,36 @@ class SOAPClassifier:
         try:
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model='gemini-2.5-flash',
+                model="gemini-2.5-flash",
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
-                    temperature=0.1,
-                    response_mime_type="application/json"
-                )
+                    temperature=0.1, response_mime_type="application/json"
+                ),
             )
-            
+
             structured_data = json.loads(response.text)
-            
+
             # Garantizar que todas las llaves existan
             required_keys = ["subjective", "objective", "assessment", "plan"]
             for key in required_keys:
                 if key not in structured_data:
                     structured_data[key] = ""
-            
+
             # Refuerzo para Assessment si Gemini lo dejó vacío
-            if not structured_data.get("assessment") and structured_data.get("subjective"):
-                structured_data["assessment"] = "Evaluación clínica presuntiva basada en sintomatología."
+            if not structured_data.get("assessment") and structured_data.get(
+                "subjective"
+            ):
+                structured_data["assessment"] = (
+                    "Evaluación clínica presuntiva basada en sintomatología."
+                )
 
             return structured_data
-            
+
         except Exception as e:
             logger.error(f"Gemini SOAP Error: {str(e)}")
             return {
                 "subjective": text,
                 "objective": "",
                 "assessment": f"Error de IA (2.5): {str(e)[:40]}",
-                "plan": "Reintente o complete manualmente."
+                "plan": "Reintente o complete manualmente.",
             }

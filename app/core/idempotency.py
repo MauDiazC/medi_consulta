@@ -1,9 +1,9 @@
 import json
-import hashlib
+
+import redis.asyncio as redis
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-import redis.asyncio as redis
-from app.core.config import settings
+
 
 class IdempotencyMiddleware(BaseHTTPMiddleware):
     """
@@ -11,6 +11,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
     Uses Redis to store response fingerprints for 24h.
     Requires header: X-Idempotency-Key
     """
+
     def __init__(self, app, redis_url: str):
         super().__init__(app)
         self.redis = redis.from_url(redis_url)
@@ -37,7 +38,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 content=data["body"],
                 status_code=data["status_code"],
                 headers=data["headers"],
-                media_type=data["media_type"]
+                media_type=data["media_type"],
             )
 
         # 4. Execute Request
@@ -54,7 +55,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 "body": response_body.decode("utf-8") if response_body else "",
                 "status_code": response.status_code,
                 "headers": dict(response.headers),
-                "media_type": response.media_type
+                "media_type": response.media_type,
             }
             await self.redis.setex(redis_key, self.ttl, json.dumps(payload))
 
@@ -63,7 +64,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 content=response_body,
                 status_code=response.status_code,
                 headers=dict(response.headers),
-                media_type=response.media_type
+                media_type=response.media_type,
             )
 
         return response

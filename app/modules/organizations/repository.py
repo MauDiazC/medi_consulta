@@ -1,11 +1,11 @@
-from datetime import datetime
 import json
+from datetime import datetime
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class OrganizationRepository:
-
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -45,12 +45,12 @@ class OrganizationRepository:
         return r.mappings().first()
 
     async def get_summary_stats(
-        self, 
-        org_id: str, 
-        role: str, 
+        self,
+        org_id: str,
+        role: str,
         user_id: str,
         start_date: str | None = None,
-        end_date: str | None = None
+        end_date: str | None = None,
     ):
         """
         Fetches role-aware statistics for the dashboard.
@@ -67,8 +67,8 @@ class OrganizationRepository:
                 params["start_date"] = datetime.strptime(start_date, "%Y-%m-%d")
                 date_filter += " AND created_at >= :start_date"
             except ValueError:
-                pass # Or raise error
-        
+                pass  # Or raise error
+
         if end_date:
             try:
                 params["end_date"] = datetime.strptime(end_date, "%Y-%m-%d")
@@ -79,7 +79,7 @@ class OrganizationRepository:
         if role == "admin":
             # Global Clinic View
             query = f"""
-                SELECT 
+                SELECT
                     (SELECT COUNT(*) FROM patients WHERE organization_id = CAST(:oid AS UUID)) as total_patients,
                     (SELECT COUNT(*) FROM encounters WHERE organization_id = CAST(:oid AS UUID) {date_filter}) as total_encounters,
                     (SELECT COUNT(*) FROM clinical_sessions WHERE organization_id = CAST(:oid AS UUID) AND is_active = true) as active_sessions,
@@ -89,48 +89,48 @@ class OrganizationRepository:
         else:
             # Clinical Staff View (Personal Stats)
             query = f"""
-                SELECT 
+                SELECT
                     (
-                        SELECT COUNT(DISTINCT patient_id) 
-                        FROM encounters 
-                        WHERE doctor_id = CAST(:uid AS UUID) 
+                        SELECT COUNT(DISTINCT patient_id)
+                        FROM encounters
+                        WHERE doctor_id = CAST(:uid AS UUID)
                         AND organization_id = CAST(:oid AS UUID)
                         {date_filter}
                     ) as my_patients,
                     (
-                        SELECT COUNT(*) 
-                        FROM encounters 
-                        WHERE doctor_id = CAST(:uid AS UUID) 
+                        SELECT COUNT(*)
+                        FROM encounters
+                        WHERE doctor_id = CAST(:uid AS UUID)
                         AND organization_id = CAST(:oid AS UUID)
                         {date_filter}
                     ) as my_total_encounters,
                     (
-                        SELECT COUNT(DISTINCT encounter_id) 
+                        SELECT COUNT(DISTINCT encounter_id)
                         FROM clinical_notes cn1
-                        WHERE cn1.created_by = CAST(:uid AS UUID) 
+                        WHERE cn1.created_by = CAST(:uid AS UUID)
                         AND cn1.signed_at IS NULL
                         AND EXISTS (
-                            SELECT 1 FROM encounters e 
-                            WHERE e.id = cn1.encounter_id 
+                            SELECT 1 FROM encounters e
+                            WHERE e.id = cn1.encounter_id
                             AND e.organization_id = CAST(:oid AS UUID)
                         )
                         AND NOT EXISTS (
-                            SELECT 1 FROM clinical_notes cn2 
-                            WHERE cn2.encounter_id = cn1.encounter_id 
+                            SELECT 1 FROM clinical_notes cn2
+                            WHERE cn2.encounter_id = cn1.encounter_id
                             AND cn2.signed_at IS NOT NULL
                         )
-                        {date_filter.replace('created_at', 'cn1.created_at')}
+                        {date_filter.replace("created_at", "cn1.created_at")}
                     ) as pending_signatures,
                     (
-                        SELECT COUNT(*) 
-                        FROM clinical_sessions 
-                        WHERE user_id = CAST(:uid AS UUID) 
+                        SELECT COUNT(*)
+                        FROM clinical_sessions
+                        WHERE user_id = CAST(:uid AS UUID)
                         AND is_active = true
                         AND organization_id = CAST(:oid AS UUID)
                     ) as my_active_sessions,
                     'personal' as scope
             """
-        
+
         r = await self.db.execute(
             text(query),
             params,
@@ -138,7 +138,9 @@ class OrganizationRepository:
         return r.mappings().first()
 
     async def update(self, org_id: str, payload):
-        settings_json = json.dumps(payload.settings) if payload.settings is not None else None
+        settings_json = (
+            json.dumps(payload.settings) if payload.settings is not None else None
+        )
         r = await self.db.execute(
             text("""
                 UPDATE organizations
@@ -156,7 +158,7 @@ class OrganizationRepository:
                 RETURNING *
             """),
             {
-                "id": org_id, 
+                "id": org_id,
                 "name": payload.name,
                 "address": payload.address,
                 "phone": payload.phone,
@@ -166,19 +168,19 @@ class OrganizationRepository:
                 "stripe_customer_id": payload.stripe_customer_id,
                 "stripe_subscription_id": payload.stripe_subscription_id,
                 "subscription_status": payload.subscription_status,
-                "subscription_period_end": payload.subscription_period_end
+                "subscription_period_end": payload.subscription_period_end,
             },
         )
         # Commit removed for service orchestration
         return r.mappings().first()
 
     async def sync_subscription_status(
-        self, 
-        org_id: str, 
-        status: str, 
-        customer_id: str | None = None, 
+        self,
+        org_id: str,
+        status: str,
+        customer_id: str | None = None,
         subscription_id: str | None = None,
-        period_end: datetime | None = None
+        period_end: datetime | None = None,
     ):
         """
         Specialized atomic update for Stripe webhooks.
@@ -197,8 +199,8 @@ class OrganizationRepository:
                 "status": status,
                 "customer_id": customer_id,
                 "sub_id": subscription_id,
-                "period_end": period_end
-            }
+                "period_end": period_end,
+            },
         )
 
     async def deactivate(self, org_id: str):
@@ -228,6 +230,6 @@ class OrganizationRepository:
         """DANGER: Physical deletion. Use only for dev/testing."""
         await self.db.execute(
             text("DELETE FROM organizations WHERE id = CAST(:id AS UUID)"),
-            {"id": org_id}
+            {"id": org_id},
         )
         await self.db.commit()

@@ -1,5 +1,4 @@
 class SOAPStreamer:
-
     def __init__(self):
         self.soap = {
             "subjective": "",
@@ -10,8 +9,6 @@ class SOAPStreamer:
 
     def update(self, section, content):
 
-        self.soap[section.lower()] += (
-            " " + content
-        )
+        self.soap[section.lower()] += " " + content
 
         return self.soap

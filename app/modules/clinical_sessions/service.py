@@ -1,9 +1,9 @@
-from typing import List, Optional
+import builtins
+
 from fastapi import HTTPException
 
 
 class ClinicalSessionService:
-
     def __init__(self, repo):
         self._repo = repo
 
@@ -14,16 +14,35 @@ class ClinicalSessionService:
             user_id,
         )
 
-    async def list(self, org_id, limit, offset, is_active: Optional[bool] = None, authorized_doctor_ids: Optional[List[str]] = None):
-        return await self._repo.list(org_id, limit, offset, is_active, authorized_doctor_ids)
+    async def list(
+        self,
+        org_id,
+        limit,
+        offset,
+        is_active: bool | None = None,
+        authorized_doctor_ids: list[str] | None = None,
+    ):
+        return await self._repo.list(
+            org_id, limit, offset, is_active, authorized_doctor_ids
+        )
 
-    async def get(self, session_id, org_id, authorized_doctor_ids: Optional[List[str]] = None):
+    async def get(
+        self,
+        session_id,
+        org_id,
+        authorized_doctor_ids: builtins.list[str] | None = None,
+    ):
         session = await self._repo.get(session_id, org_id, authorized_doctor_ids)
         if not session:
             raise HTTPException(status_code=404, detail="Sesión clínica no encontrada")
         return session
 
-    async def get_encounters(self, session_id, org_id, authorized_doctor_ids: Optional[List[str]] = None):
+    async def get_encounters(
+        self,
+        session_id,
+        org_id,
+        authorized_doctor_ids: builtins.list[str] | None = None,
+    ):
         # First validate access to the session
         await self.get(session_id, org_id, authorized_doctor_ids)
         return await self._repo.get_encounters(session_id, org_id)

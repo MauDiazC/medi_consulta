@@ -7,7 +7,6 @@ from .diff import build_diff
 
 
 class ClinicalNoteService:
-
     def __init__(self, repo):
         self.repo = repo
 
@@ -17,14 +16,14 @@ class ClinicalNoteService:
         Ensures multi-tenancy by checking the encounter belongs to the org.
         """
         from app.modules.notes.signing.repository import SigningRepository
+
         signing_repo = SigningRepository(self.repo.db)
 
-        # We assume is_encounter_sealed or a similar check validates the encounter exists 
+        # We assume is_encounter_sealed or a similar check validates the encounter exists
         # for this org, otherwise we might leak existence.
         if await signing_repo.is_encounter_sealed(encounter_id):
             raise HTTPException(
-                400, 
-                "Encounter is cryptographically sealed. No modifications allowed."
+                400, "Encounter is cryptographically sealed. No modifications allowed."
             )
 
     async def autosave(
@@ -43,10 +42,7 @@ class ClinicalNoteService:
             if if_unmodified_since in [None, "", "null", "undefined", "NaN"]:
                 if_unmodified_since = None
 
-            draft = await self.repo.get_active_draft(
-                encounter_id,
-                organization_id
-            )
+            draft = await self.repo.get_active_draft(encounter_id, organization_id)
 
             if not draft:
                 # Clinical Safety: Auto-provision first draft version if it doesn't exist
@@ -60,23 +56,28 @@ class ClinicalNoteService:
                         "plan": fields.get("plan", ""),
                         "created_by": doctor_id,
                     },
-                    organization_id
+                    organization_id,
                 )
                 if not new_note:
-                     raise HTTPException(404, "Encounter not found for this organization")
+                    raise HTTPException(
+                        404, "Encounter not found for this organization"
+                    )
 
                 # Defensive Eventing: Prevent Redis failures from breaking the critical path
                 try:
-                    await publish_event("note.created", {"encounter_id": encounter_id, "note_id": new_note["id"]})
+                    await publish_event(
+                        "note.created",
+                        {"encounter_id": encounter_id, "note_id": new_note["id"]},
+                    )
                 except Exception:
-                    pass # Event loss is acceptable vs API crash in this context
+                    pass  # Event loss is acceptable vs API crash in this context
 
                 return new_note
 
-            if str(draft["created_by"]) != str(
-                doctor_id
-            ):
-                raise HTTPException(403, "Unauthorized: Only the author can update this draft")
+            if str(draft["created_by"]) != str(doctor_id):
+                raise HTTPException(
+                    403, "Unauthorized: Only the author can update this draft"
+                )
 
             updated = await self.repo.autosave_update(
                 draft["id"],
@@ -95,9 +96,7 @@ class ClinicalNoteService:
             try:
                 await publish_event(
                     "note.autosaved",
-                    {
-                        "encounter_id": encounter_id
-                    },
+                    {"encounter_id": encounter_id},
                 )
             except Exception:
                 pass
@@ -107,12 +106,17 @@ class ClinicalNoteService:
             raise
         except Exception as e:
             import logging
+
             logger = logging.getLogger("api")
-            logger.error(f"CRITICAL AUTOSAVE ERROR: {str(e)}", exc_info=True, extra={
-                "encounter_id": encounter_id,
-                "doctor_id": doctor_id,
-                "org_id": organization_id
-            })
+            logger.error(
+                f"CRITICAL AUTOSAVE ERROR: {str(e)}",
+                exc_info=True,
+                extra={
+                    "encounter_id": encounter_id,
+                    "doctor_id": doctor_id,
+                    "org_id": organization_id,
+                },
+            )
             raise HTTPException(500, f"Error interno en autosave: {str(e)}")
 
     async def finalize_version(
@@ -123,10 +127,7 @@ class ClinicalNoteService:
     ):
         await self._check_finality(encounter_id, organization_id)
 
-        draft = await self.repo.get_active_draft(
-            encounter_id,
-            organization_id
-        )
+        draft = await self.repo.get_active_draft(encounter_id, organization_id)
 
         if not draft:
             raise HTTPException(404, "Draft not found")
@@ -144,7 +145,7 @@ class ClinicalNoteService:
                 "plan": draft["plan"],
                 "created_by": doctor_id,
             },
-            organization_id
+            organization_id,
         )
 
         # 2. Cleanup: Marks all other versions for THIS encounter as superseded/inactive
@@ -156,12 +157,18 @@ class ClinicalNoteService:
             new_note["id"],
             "version_created",
             doctor_id,
-            organization_id=organization_id
+            organization_id=organization_id,
         )
 
         return new_note
 
-    async def sign(self, note_id: str, doctor_id: str, organization_id: str, private_key_pem: bytes = None):
+    async def sign(
+        self,
+        note_id: str,
+        doctor_id: str,
+        organization_id: str,
+        private_key_pem: bytes = None,
+    ):
         """
         Orchestrates the signing of a clinical note and supersedes older versions.
         """
@@ -184,14 +191,12 @@ class ClinicalNoteService:
 
         # Delegate to Signing Module
         from app.modules.notes.signing.service import SigningApplicationService
+
         signing_app = SigningApplicationService(self.repo.db)
 
         # 1. Sign this specific version
         await signing_app.execute_signing(
-            note,
-            note, 
-            str(doctor_id),
-            private_key_pem=private_key_pem
+            note, note, str(doctor_id), private_key_pem=private_key_pem
         )
 
         # 2. Cleanup: Ensure only THIS version remains active (authoritative)
@@ -199,10 +204,7 @@ class ClinicalNoteService:
 
         await publish_event(
             "note.signed",
-            {
-                "encounter_id": str(note["encounter_id"]),
-                "note_id": note_id
-            },
+            {"encounter_id": str(note["encounter_id"]), "note_id": note_id},
         )
 
         return {"signed": True}
@@ -214,17 +216,9 @@ class ClinicalNoteService:
         v1: int,
         v2: int,
     ):
-        old = await self.repo.get_version(
-            encounter_id,
-            v1,
-            organization_id
-        )
+        old = await self.repo.get_version(encounter_id, v1, organization_id)
 
-        new = await self.repo.get_version(
-            encounter_id,
-            v2,
-            organization_id
-        )
+        new = await self.repo.get_version(encounter_id, v2, organization_id)
 
         if not old or not new:
             raise HTTPException(

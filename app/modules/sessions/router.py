@@ -14,17 +14,13 @@ router = APIRouter(
 
 
 def get_service(db: AsyncSession = Depends(get_db)):
-    return SessionService(
-        SessionRepository(db)
-    )
+    return SessionService(SessionRepository(db))
 
 
 @router.post("/encounter/{encounter_id}/open")
 async def open_session(
     encounter_id: str,
-    user=Depends(
-        require_role("doctor", "assistant")
-    ),
+    user=Depends(require_role("doctor", "assistant")),
     service=Depends(get_service),
 ):
     return await service.open_session(

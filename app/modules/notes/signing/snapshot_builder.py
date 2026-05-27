@@ -1,10 +1,13 @@
-from app.modules.notes.signing.utils import canonical_json
-from app.modules.notes.signing.utils import sha256_hex
-from datetime import datetime, timezone
-import os
 import hashlib
+import os
+from datetime import UTC, datetime
 
-def build_clinical_snapshot(note, version, professional_info: dict, previous_snapshot_hash: str = None):
+from app.modules.notes.signing.utils import canonical_json, sha256_hex
+
+
+def build_clinical_snapshot(
+    note, version, professional_info: dict, previous_snapshot_hash: str = None
+):
     """
     Builds the clinical snapshot including Trust Chain and NOM-004 identity binding.
     """
@@ -15,10 +18,12 @@ def build_clinical_snapshot(note, version, professional_info: dict, previous_sna
         "A": version.get("assessment", ""),
         "P": version.get("plan", ""),
     }
-    
+
     for key, val in soap.items():
         if not val or len(val.strip()) < 2:
-            raise ValueError(f"NOM-004 Violation: SOAP section '{key}' is mandatory and cannot be empty.")
+            raise ValueError(
+                f"NOM-004 Violation: SOAP section '{key}' is mandatory and cannot be empty."
+            )
 
     # 2) Identity Binding (Authorship)
     author_identity = {
@@ -28,11 +33,13 @@ def build_clinical_snapshot(note, version, professional_info: dict, previous_sna
     }
 
     if not author_identity["professional_license"]:
-        raise ValueError("NOM-004 Violation: Professional license number is required for signing.")
+        raise ValueError(
+            "NOM-004 Violation: Professional license number is required for signing."
+        )
 
     # 3) System Clock Hash (Time Integrity)
     # Provides a fingerprint of the system environment at the moment of signing
-    clock_seed = f"{datetime.now(timezone.utc).isoformat()}-{os.getpid()}"
+    clock_seed = f"{datetime.now(UTC).isoformat()}-{os.getpid()}"
     system_clock_hash = hashlib.sha256(clock_seed.encode()).hexdigest()
 
     payload = {
@@ -47,7 +54,7 @@ def build_clinical_snapshot(note, version, professional_info: dict, previous_sna
             "app_version": "mediconsulta-1.1-compliant",
             "previous_snapshot_hash": previous_snapshot_hash,
             "system_clock_hash": system_clock_hash,
-            "signed_at_utc": datetime.now(timezone.utc).isoformat()
+            "signed_at_utc": datetime.now(UTC).isoformat(),
         },
     }
 

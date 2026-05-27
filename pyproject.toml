@@ -69,7 +69,7 @@ select = [
     "UP", # pyupgrade
     "S",  # flake8-bandit (Security)
 ]
-ignore = ["E501"] # Ignore line length errors (handled by formatter)
+ignore = ["E501", "B008"] # Ignore line length and Depends in function defaults (FastAPI)
 
 [tool.ruff.isort]
 known-first-party = ["app"]

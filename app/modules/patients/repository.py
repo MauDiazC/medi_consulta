@@ -2,7 +2,6 @@ from sqlalchemy import text
 
 
 class PatientRepository:
-
     def __init__(self, db):
         self.db = db
 
@@ -21,11 +20,11 @@ class PatientRepository:
 
     async def create(self, payload, org):
         phone = self._format_mexico_phone(payload.phone_number)
-        
+
         r = await self.db.execute(
             text("""
                 INSERT INTO patients(
-                    first_name, last_name, phone_number, email, 
+                    first_name, last_name, phone_number, email,
                     birth_date, sex,
                     organization_id, is_active,
                     emergency_contact_name, emergency_contact_phone,
@@ -36,8 +35,8 @@ class PatientRepository:
                 RETURNING *
             """),
             {
-                "f": payload.first_name, 
-                "l": payload.last_name, 
+                "f": payload.first_name,
+                "l": payload.last_name,
                 "p": phone,
                 "e": payload.email,
                 "b": payload.birth_date,
@@ -47,7 +46,7 @@ class PatientRepository:
                 "ecp": self._format_mexico_phone(payload.emergency_contact_phone),
                 "eca": payload.emergency_contact_address,
                 "ecr": payload.emergency_contact_relationship,
-                "ece": payload.emergency_contact_email
+                "ece": payload.emergency_contact_email,
             },
         )
         await self.db.commit()
@@ -108,7 +107,7 @@ class PatientRepository:
                 "ecp": self._format_mexico_phone(payload.emergency_contact_phone),
                 "eca": payload.emergency_contact_address,
                 "ecr": payload.emergency_contact_relationship,
-                "ece": payload.emergency_contact_email
+                "ece": payload.emergency_contact_email,
             },
         )
         await self.db.commit()
@@ -116,21 +115,21 @@ class PatientRepository:
 
     async def get_by_phone(self, phone: str):
         """
-        Busca un paciente por su número de teléfono. 
+        Busca un paciente por su número de teléfono.
         Maneja formatos con y sin prefijo 52.
         """
         clean_phone = "".join(filter(str.isdigit, phone))
-        
+
         # Generar variantes para la búsqueda
         ten_digits = clean_phone[-10:] if len(clean_phone) >= 10 else clean_phone
         with_52 = f"52{ten_digits}"
-        
+
         r = await self.db.execute(
             text("""
                 SELECT *
                 FROM patients
-                WHERE phone_number = :p1 
-                   OR phone_number = :p2 
+                WHERE phone_number = :p1
+                   OR phone_number = :p2
                    OR phone_number = :p3
                 LIMIT 1
             """),

@@ -1,18 +1,22 @@
-from fastapi import Depends, HTTPException, status, Request
+import logging
+
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-import logging
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.security import ALGORITHM
+
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.security import ALGORITHM
 
 logger = logging.getLogger("core.dependencies")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
-async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)) -> dict:
+async def get_current_user(
+    request: Request, token: str = Depends(oauth2_scheme)
+) -> dict:
     """
     Robust extraction of local identity.
     Handles manual header check if standard scheme fails.
@@ -22,7 +26,7 @@ async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
-    
+
     if not token:
         logger.warning("Authentication attempt without token")
         raise HTTPException(
@@ -41,9 +45,9 @@ async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)
             detail="Invalid token",
         )
 
+
 async def get_authorized_doctor_ids(
-    user=Depends(get_current_user), 
-    db: AsyncSession = Depends(get_db)
+    user=Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> list[str]:
     """
     Returns a list of doctor IDs the current user is authorized to view.
@@ -52,10 +56,10 @@ async def get_authorized_doctor_ids(
     """
     role = user.get("role")
     user_id = user.get("sub")
-    
+
     if role == "doctor":
         return [user_id]
-        
+
     # For all other roles, check staff_assignments
     result = await db.execute(
         text("""
@@ -63,6 +67,6 @@ async def get_authorized_doctor_ids(
             FROM staff_assignments
             WHERE staff_id=CAST(:sid AS UUID)
         """),
-        {"sid": user_id}
+        {"sid": user_id},
     )
     return [str(row[0]) for row in result.all()]

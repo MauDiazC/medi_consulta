@@ -1,9 +1,9 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.notes.signing.models import NoteSnapshot
 from app.modules.notes.signing.crypto_service import load_private_key, sign_hash
+from app.modules.notes.signing.models import NoteSnapshot
 from app.modules.notes.signing.snapshot_builder import build_clinical_snapshot
 
 
@@ -32,7 +32,7 @@ async def sign_note(
         content_hash=content_hash,
         signature=signature,
         signed_by=signer_id,
-        signed_at=datetime.now(timezone.utc),
+        signed_at=datetime.now(UTC),
         public_key_fingerprint="org-rsa-fingerprint",  # placeholder
     )
     db.add(snapshot)

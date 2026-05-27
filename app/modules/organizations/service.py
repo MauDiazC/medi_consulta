@@ -2,7 +2,6 @@ from fastapi import HTTPException
 
 
 class OrganizationService:
-
     def __init__(self, repo, user_repo):
         self.repo = repo
         self.user_repo = user_repo
@@ -14,10 +13,10 @@ class OrganizationService:
         async with self.repo.db.begin():
             # 1. Create Organization via its authority
             org = await self.repo.create(payload.name)
-            
+
             # 2. Assign User via User authority (Preserves Aggregate Boundary)
             await self.user_repo.assign_organization(user_id, org["id"])
-            
+
             return org
 
     async def list(self, limit, offset):
@@ -45,17 +44,17 @@ class OrganizationService:
             await self.repo.activate(org_id)
 
     async def get_summary_stats(
-        self, 
-        org_id: str, 
-        role: str, 
+        self,
+        org_id: str,
+        role: str,
         user_id: str,
         start_date: str | None = None,
-        end_date: str | None = None
+        end_date: str | None = None,
     ):
         return await self.repo.get_summary_stats(
             org_id=org_id,
             role=role,
             user_id=user_id,
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
         )

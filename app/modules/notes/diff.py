@@ -13,7 +13,6 @@ def build_diff(old, new):
     result = {}
 
     for field in FIELDS:
-
         old_text = old.get(field) or ""
         new_text = new.get(field) or ""
 

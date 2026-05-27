@@ -1,14 +1,23 @@
 import asyncio
 import uuid
 
-from fastapi import APIRouter, Depends, Header, File, UploadFile, Request, BackgroundTasks, HTTPException
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Header,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.audit import RequestAuditContext, background_audit
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.note_locks import acquire_note_lock, release_note_lock
-from app.core.audit import background_audit, RequestAuditContext
 from app.core.permissions import require_role
 
 from .repository import ClinicalNoteRepository
@@ -23,9 +32,8 @@ router = APIRouter(
 def get_service(
     db: AsyncSession = Depends(get_db),
 ):
-    return ClinicalNoteService(
-        ClinicalNoteRepository(db)
-    )
+    return ClinicalNoteService(ClinicalNoteRepository(db))
+
 
 @router.get("/encounter/{encounter_id}")
 async def list_notes_by_encounter(
@@ -35,6 +43,7 @@ async def list_notes_by_encounter(
 ):
     """Lists all note versions for a specific encounter."""
     return await service.repo.list_by_encounter(str(encounter_id), user["org"])
+
 
 @router.get("/{note_id}")
 async def get_note(
@@ -52,12 +61,12 @@ async def get_note(
     note = await service.repo.get(str(note_id), user["org"])
     if not note:
         raise HTTPException(status_code=404, detail="Nota clínica no encontrada.")
-    
+
     # Professional Audit: Log access in background
     ctx = RequestAuditContext(request, user)
     background_audit(
         background_tasks,
-        get_db, # Factory for fresh session
+        get_db,  # Factory for fresh session
         entity="clinical_note",
         entity_id=str(note_id),
         action="READ_ACCESS",
@@ -65,7 +74,7 @@ async def get_note(
         organization_id=ctx.organization_id,
         ip_address=ctx.ip_address,
         user_agent=ctx.user_agent,
-        metadata={"encounter_id": str(note["encounter_id"])}
+        metadata={"encounter_id": str(note["encounter_id"])},
     )
 
     return note
@@ -101,7 +110,6 @@ async def finalize_version(
     )
 
 
-
 @router.post("/{note_id}/sign")
 async def sign_note(
     note_id: str,
@@ -110,12 +118,7 @@ async def sign_note(
     service=Depends(get_service),
 ):
     private_pem = await keyfile.read()
-    return await service.sign(
-        note_id,
-        user["sub"],
-        user["org"],
-        private_pem
-    )
+    return await service.sign(note_id, user["sub"], user["org"], private_pem)
 
 
 @router.post("/lock/{note_id}")
@@ -168,16 +171,17 @@ async def stream_ai(
         media_type="text/event-stream",
     )
 
-from fastapi.responses import StreamingResponse, Response
+
+from fastapi.responses import Response
 from weasyprint import HTML
-import io
+
 
 @router.get("/{note_id}/prescription")
 async def generate_prescription_pdf(
     note_id: str,
     user=Depends(get_current_user),
     service=Depends(get_service),
-    db=Depends(get_db)
+    db=Depends(get_db),
 ):
     """
     Generates a professional PDF prescription based on the clinical note's plan.
@@ -188,11 +192,15 @@ async def generate_prescription_pdf(
     if not note:
         raise HTTPException(404, "Note not found")
 
-    from app.modules.notes.signing.identity_repository import ProfessionalIdentityRepository
+    from app.modules.notes.signing.identity_repository import (
+        ProfessionalIdentityRepository,
+    )
+
     ident_repo = ProfessionalIdentityRepository(db)
     identity = await ident_repo.get_by_user(str(note["created_by"]), user["org"])
 
     from app.modules.encounters.repository import EncounterRepository
+
     enc_repo = EncounterRepository(db)
     encounter = await enc_repo.get(str(note["encounter_id"]), user["org"])
 
@@ -217,7 +225,7 @@ async def generate_prescription_pdf(
                 <div class="license">Cédula Profesional: {identity["license_number"] if identity else "N/A"}</div>
                 <div class="specialty">{identity["specialty"] if identity else ""}</div>
             </div>
-            
+
             <div class="patient-info">
                 <strong>Paciente:</strong> {encounter["patient_name"] if encounter else "N/A"} <br>
                 <strong>Fecha:</strong> {note["created_at"].strftime("%d/%m/%Y")}
@@ -236,12 +244,13 @@ async def generate_prescription_pdf(
 
     # 3. Convert HTML to PDF
     pdf_bytes = HTML(string=html_content).write_pdf()
-    
+
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=receta_{note_id}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=receta_{note_id}.pdf"},
     )
+
 
 @router.get("/diff/{encounter_id}/{v1}/{v2}")
 async def diff_versions(

@@ -14,8 +14,10 @@ class TriageBase(BaseModel):
     height: float | None = None
     temperature: float | None = None
 
+
 class TriageCreate(TriageBase):
     pass
+
 
 class TriageRead(TriageBase):
     id: UUID
@@ -31,14 +33,17 @@ class TriageRead(TriageBase):
         """
         Determina si se han tomado signos vitales basándose en si al menos uno está presente.
         """
-        return any([
-            self.heart_rate is not None,
-            self.oxygen_saturation is not None,
-            self.blood_pressure is not None,
-            self.weight is not None,
-            self.height is not None,
-            self.temperature is not None
-        ])
+        return any(
+            [
+                self.heart_rate is not None,
+                self.oxygen_saturation is not None,
+                self.blood_pressure is not None,
+                self.weight is not None,
+                self.height is not None,
+                self.temperature is not None,
+            ]
+        )
+
 
 class TriageStatus(BaseModel):
     vital_signs_taken: bool

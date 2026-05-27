@@ -1,12 +1,15 @@
 import json
 import uuid
+
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.models import OutboxEvent
+
 from app.core.config import settings
+from app.core.models import OutboxEvent
 
 # Global redis client (Lazy initialization)
 _r = None
+
 
 def get_redis():
     global _r
@@ -16,11 +19,13 @@ def get_redis():
         _r = redis.from_url(settings.REDIS_URL)
     return _r
 
+
 class EventEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, uuid.UUID):
             return str(obj)
         return super().default(obj)
+
 
 async def publish_event(event: str, payload: dict):
     """
@@ -32,11 +37,9 @@ async def publish_event(event: str, payload: dict):
 
     await r.publish(
         "mediconsulta.events",
-        json.dumps({
-            "type": event,
-            "data": payload
-        }, cls=EventEncoder),
+        json.dumps({"type": event, "data": payload}, cls=EventEncoder),
     )
+
 
 async def publish_event_tx(db: AsyncSession, event_type: str, payload: dict):
     """
@@ -46,8 +49,5 @@ async def publish_event_tx(db: AsyncSession, event_type: str, payload: dict):
     # Sanitize payload for JSON column
     sanitized_payload = json.loads(json.dumps(payload, cls=EventEncoder))
 
-    event = OutboxEvent(
-        event_type=event_type,
-        payload=sanitized_payload
-    )
+    event = OutboxEvent(event_type=event_type, payload=sanitized_payload)
     db.add(event)

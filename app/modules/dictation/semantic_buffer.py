@@ -2,7 +2,6 @@ import time
 
 
 class SemanticBuffer:
-
     def __init__(self):
 
         self.buffer = ""

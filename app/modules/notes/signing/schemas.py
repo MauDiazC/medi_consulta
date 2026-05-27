@@ -1,11 +1,10 @@
 from pydantic import BaseModel
-from typing import Optional
 
 
 class ProfessionalIdentitySetup(BaseModel):
     public_key_pem: str
     license_number: str
-    specialty: Optional[str] = None
+    specialty: str | None = None
 
 
 class ProfessionalIdentityDTO(BaseModel):
@@ -13,5 +12,5 @@ class ProfessionalIdentityDTO(BaseModel):
     organization_id: str
     public_key_pem: str
     license_number: str
-    specialty: Optional[str] = None
+    specialty: str | None = None
     is_active: bool

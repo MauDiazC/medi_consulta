@@ -1,6 +1,7 @@
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel
 
 
 class OrganizationCreate(BaseModel):
@@ -8,28 +9,28 @@ class OrganizationCreate(BaseModel):
 
 
 class OrganizationUpdate(BaseModel):
-    name: Optional[str] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    description: Optional[str] = None
-    logo_url: Optional[str] = None
-    settings: Optional[Dict[str, Any]] = None
-    stripe_customer_id: Optional[str] = None
-    stripe_subscription_id: Optional[str] = None
-    subscription_status: Optional[str] = None
-    subscription_period_end: Optional[datetime] = None
+    name: str | None = None
+    address: str | None = None
+    phone: str | None = None
+    description: str | None = None
+    logo_url: str | None = None
+    settings: dict[str, Any] | None = None
+    stripe_customer_id: str | None = None
+    stripe_subscription_id: str | None = None
+    subscription_status: str | None = None
+    subscription_period_end: datetime | None = None
 
 
 class OrganizationDTO(BaseModel):
     id: str
     name: str
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    description: Optional[str] = None
-    logo_url: Optional[str] = None
+    address: str | None = None
+    phone: str | None = None
+    description: str | None = None
+    logo_url: str | None = None
     active: bool
-    settings: Dict[str, Any] = {}
-    stripe_customer_id: Optional[str] = None
-    stripe_subscription_id: Optional[str] = None
+    settings: dict[str, Any] = {}
+    stripe_customer_id: str | None = None
+    stripe_subscription_id: str | None = None
     subscription_status: str = "trialing"
-    subscription_period_end: Optional[datetime] = None
+    subscription_period_end: datetime | None = None

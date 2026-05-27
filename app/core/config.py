@@ -1,18 +1,19 @@
 import os
 from pathlib import Path
+
 from dynaconf import Dynaconf, Validator
 
 root = Path(__file__).resolve().parent.parent
-conf_path = root / 'core'
+conf_path = root / "core"
 
 settings = Dynaconf(
     envvar_prefix=False,
     root_path=conf_path,
-    settings_files=['settings.toml', '.secrets.toml'],
+    settings_files=["settings.toml", ".secrets.toml"],
     load_dotenv=True,
     environments=True,
-    env_switch_for_dynaconf='ENV_FOR_DYNACONF', 
-    default_env='development',
+    env_switch_for_dynaconf="ENV_FOR_DYNACONF",
+    default_env="development",
 )
 
 # --- Validadores de Grado Profesional ---
@@ -25,18 +26,66 @@ core_validators = [
 
 # 2. Servicios Externos (Opcionales o específicos)
 external_validators = [
-    Validator("GOOGLE_AI_API_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("GOOGLE_CLIENT_ID", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("RESEND_API_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("META_WHATSAPP_TOKEN", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("META_PHONE_NUMBER_ID", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("META_VERIFY_TOKEN", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("STRIPE_SECRET_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("STRIPE_WEBHOOK_SECRET", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("FACTURAPI_KEY", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("STRIPE_PRICE_MEDICO", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("STRIPE_PRICE_CONSULTORIO", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
-    Validator("STRIPE_PRICE_CLINICA", must_exist=True, when=Validator("ENV_FOR_DYNACONF", eq="production")),
+    Validator(
+        "GOOGLE_AI_API_KEY",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
+    Validator(
+        "GOOGLE_CLIENT_ID",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
+    Validator(
+        "RESEND_API_KEY",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
+    Validator(
+        "META_WHATSAPP_TOKEN",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
+    Validator(
+        "META_PHONE_NUMBER_ID",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
+    Validator(
+        "META_VERIFY_TOKEN",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
+    Validator(
+        "STRIPE_SECRET_KEY",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
+    Validator(
+        "STRIPE_WEBHOOK_SECRET",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
+    Validator(
+        "FACTURAPI_KEY",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
+    Validator(
+        "STRIPE_PRICE_MEDICO",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
+    Validator(
+        "STRIPE_PRICE_CONSULTORIO",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
+    Validator(
+        "STRIPE_PRICE_CLINICA",
+        must_exist=True,
+        when=Validator("ENV_FOR_DYNACONF", eq="production"),
+    ),
 ]
 
 # Nota: En Railway, si usas Supabase para Auth, DEBES poner las variables.
@@ -45,7 +94,7 @@ external_validators = [
 if not os.environ.get("CI"):
     settings.validators.register(*core_validators)
     settings.validators.register(*external_validators)
-    
+
     try:
         settings.validators.validate()
     except Exception as e:

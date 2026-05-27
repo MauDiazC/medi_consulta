@@ -4,7 +4,6 @@ from app.core.security import hash_password
 
 
 class UserService:
-
     def __init__(self, repo):
         self.repo = repo
 
@@ -14,7 +13,7 @@ class UserService:
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"El correo {payload.email} ya está registrado."
+                detail=f"El correo {payload.email} ya está registrado.",
             )
 
         user = await self.repo.create(
@@ -24,7 +23,7 @@ class UserService:
             payload.role,
             payload.organization_id,
         )
-        
+
         # 2. Persist to DB
         await self.repo.db.commit()
         return user
@@ -42,7 +41,7 @@ class UserService:
         user = await self.repo.update(user_id, org, payload)
         if not user:
             raise HTTPException(404, "User not found")
-        
+
         await self.repo.db.commit()
         return user
 
@@ -62,13 +61,13 @@ class UserService:
         # Verify both users exist in the same organization
         staff = await self.repo.get(staff_id, org_id)
         doctor = await self.repo.get(doctor_id, org_id)
-        
+
         if not staff or not doctor:
             raise HTTPException(404, "Staff or Doctor not found in this organization")
-            
+
         if doctor["role"] != "doctor":
             raise HTTPException(400, "The target user for assignment must be a doctor")
-            
+
         await self.repo.assign_doctor(staff_id, doctor_id)
         return {"status": "assigned"}
 

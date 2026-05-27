@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
 import uuid
 
+from fastapi import APIRouter, Depends, HTTPException
+
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, get_authorized_doctor_ids
+from app.core.dependencies import get_authorized_doctor_ids, get_current_user
 from app.core.pagination import pagination_params
 
 from .repository import EncounterRepository
-from .schemas import EncounterCreate, EncounterUpdate
+from .schemas import EncounterCreate
 from .service import EncounterService
 
 router = APIRouter(prefix="/encounters", tags=["encounters"])
@@ -26,7 +27,7 @@ async def create_encounter(
     # Security: Ensure the user is authorized to create for this doctor
     if str(payload.doctor_id) not in authorized_doctor_ids:
         raise HTTPException(403, "Not authorized to create encounters for this doctor")
-        
+
     return await s.create(payload, user["org"], str(payload.doctor_id))
 
 
@@ -51,11 +52,7 @@ async def encounters_by_patient(
 ):
     """Lists patient encounters filtered by authorized doctors."""
     return await s.list_by_patient(
-        str(patient_id),
-        user["org"],
-        page.limit,
-        page.offset,
-        authorized_doctor_ids
+        str(patient_id), user["org"], page.limit, page.offset, authorized_doctor_ids
     )
 
 
@@ -70,7 +67,7 @@ async def encounters_by_doctor(
     """Lists encounters for a specific doctor, if authorized."""
     if str(doctor_id) not in authorized_doctor_ids:
         raise HTTPException(403, "Not authorized to view encounters for this doctor")
-        
+
     return await s.list_by_doctor(
         str(doctor_id),
         user["org"],
@@ -89,9 +86,5 @@ async def encounters_by_session(
 ):
     """Lists encounters for a session filtered by authorized doctors."""
     return await s.list_by_session(
-        str(session_id),
-        user["org"],
-        page.limit,
-        page.offset,
-        authorized_doctor_ids
+        str(session_id), user["org"], page.limit, page.offset, authorized_doctor_ids
     )

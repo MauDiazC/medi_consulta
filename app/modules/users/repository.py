@@ -1,10 +1,10 @@
 import json
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class UserRepository:
-
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -48,7 +48,9 @@ class UserRepository:
         return r.mappings().first()
 
     async def update(self, user_id, org, payload):
-        settings_json = json.dumps(payload.settings) if payload.settings is not None else None
+        settings_json = (
+            json.dumps(payload.settings) if payload.settings is not None else None
+        )
         r = await self.db.execute(
             text("""
                 UPDATE users
@@ -59,11 +61,11 @@ class UserRepository:
                 RETURNING *
             """),
             {
-                "id": user_id, 
-                "org": org, 
+                "id": user_id,
+                "org": org,
                 "role": payload.role,
                 "full_name": payload.full_name,
-                "settings": settings_json
+                "settings": settings_json,
             },
         )
         # Commit removed for service-level atomicity
@@ -97,15 +99,17 @@ class UserRepository:
         Authoritative method for bootstrap onboarding linkage.
         """
         await self.db.execute(
-            text("UPDATE users SET organization_id = CAST(:org_id AS UUID) WHERE id = CAST(:user_id AS UUID)"),
-            {"org_id": organization_id, "user_id": user_id}
+            text(
+                "UPDATE users SET organization_id = CAST(:org_id AS UUID) WHERE id = CAST(:user_id AS UUID)"
+            ),
+            {"org_id": organization_id, "user_id": user_id},
         )
 
     async def get_by_email(self, email: str):
         """Fetch user by email for authentication or bootstrap checks."""
         r = await self.db.execute(
             text("SELECT * FROM users WHERE email = :email"),
-            {"email": email.lower().strip()}
+            {"email": email.lower().strip()},
         )
         return r.mappings().first()
 
@@ -113,7 +117,7 @@ class UserRepository:
         """DANGER: Physical deletion of user. Use only for dev/testing."""
         await self.db.execute(
             text("DELETE FROM users WHERE email = :email"),
-            {"email": email.lower().strip()}
+            {"email": email.lower().strip()},
         )
         await self.db.commit()
 
@@ -126,7 +130,7 @@ class UserRepository:
                 VALUES(CAST(:sid AS UUID), CAST(:did AS UUID))
                 ON CONFLICT DO NOTHING
             """),
-            {"sid": staff_id, "did": doctor_id}
+            {"sid": staff_id, "did": doctor_id},
         )
         await self.db.commit()
 
@@ -136,7 +140,7 @@ class UserRepository:
                 DELETE FROM staff_assignments
                 WHERE staff_id=CAST(:sid AS UUID) AND doctor_id=CAST(:did AS UUID)
             """),
-            {"sid": staff_id, "did": doctor_id}
+            {"sid": staff_id, "did": doctor_id},
         )
         await self.db.commit()
 
@@ -147,6 +151,6 @@ class UserRepository:
                 FROM staff_assignments
                 WHERE staff_id=CAST(:sid AS UUID)
             """),
-            {"sid": staff_id}
+            {"sid": staff_id},
         )
         return [str(row[0]) for row in result.all()]

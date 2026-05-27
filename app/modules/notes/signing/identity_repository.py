@@ -3,11 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class ProfessionalIdentityRepository:
-
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def register(self, user_id, org_id, public_key_pem, license_number, specialty=None):
+    async def register(
+        self, user_id, org_id, public_key_pem, license_number, specialty=None
+    ):
         """Creates or updates the professional identity of a physician."""
         # UPSERT logic: Preserve is_active if already exists
         await self.db.execute(
@@ -29,8 +30,8 @@ class ProfessionalIdentityRepository:
                 "oid": org_id,
                 "key": public_key_pem,
                 "license": license_number,
-                "spec": specialty
-            }
+                "spec": specialty,
+            },
         )
         await self.db.commit()
 
@@ -38,11 +39,11 @@ class ProfessionalIdentityRepository:
         """Fetch identity validating organization (returns even if inactive to see status)."""
         r = await self.db.execute(
             text("""
-                SELECT * FROM professional_identities 
-                WHERE user_id = CAST(:uid AS UUID) 
+                SELECT * FROM professional_identities
+                WHERE user_id = CAST(:uid AS UUID)
                 AND organization_id = CAST(:oid AS UUID)
             """),
-            {"uid": user_id, "oid": org_id}
+            {"uid": user_id, "oid": org_id},
         )
         return r.mappings().first()
 
@@ -50,14 +51,14 @@ class ProfessionalIdentityRepository:
         """Lists all professional identities in the organization."""
         r = await self.db.execute(
             text("""
-                SELECT pi.*, u.email, u.full_name 
+                SELECT pi.*, u.email, u.full_name
                 FROM professional_identities pi
                 JOIN users u ON pi.user_id = u.id
                 WHERE pi.organization_id = CAST(:oid AS UUID)
                 ORDER BY pi.created_at DESC
                 LIMIT :limit OFFSET :offset
             """),
-            {"oid": org_id, "limit": limit, "offset": offset}
+            {"oid": org_id, "limit": limit, "offset": offset},
         )
         return r.mappings().all()
 
@@ -65,11 +66,11 @@ class ProfessionalIdentityRepository:
         """Disables the professional identity. Returns True if updated."""
         result = await self.db.execute(
             text("""
-                UPDATE professional_identities 
+                UPDATE professional_identities
                 SET is_active = false, updated_at = NOW()
                 WHERE user_id = CAST(:uid AS UUID) AND organization_id = CAST(:oid AS UUID)
             """),
-            {"uid": user_id, "oid": org_id}
+            {"uid": user_id, "oid": org_id},
         )
         await self.db.commit()
         return result.rowcount > 0
@@ -78,11 +79,11 @@ class ProfessionalIdentityRepository:
         """Re-enables the professional identity. Returns True if updated."""
         result = await self.db.execute(
             text("""
-                UPDATE professional_identities 
+                UPDATE professional_identities
                 SET is_active = true, updated_at = NOW()
                 WHERE user_id = CAST(:uid AS UUID) AND organization_id = CAST(:oid AS UUID)
             """),
-            {"uid": user_id, "oid": org_id}
+            {"uid": user_id, "oid": org_id},
         )
         await self.db.commit()
         return result.rowcount > 0

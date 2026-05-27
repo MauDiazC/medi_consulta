@@ -5,8 +5,10 @@ from cryptography.hazmat.primitives.asymmetric import padding, utils
 def load_private_key(pem_bytes: bytes, password: bytes = None):
     return serialization.load_pem_private_key(pem_bytes, password)
 
+
 def load_public_key(pem_bytes: bytes):
     return serialization.load_pem_public_key(pem_bytes)
+
 
 def sign_hash(private_key, hash_hex: str) -> str:
     sig = private_key.sign(
@@ -18,6 +20,7 @@ def sign_hash(private_key, hash_hex: str) -> str:
         utils.Prehashed(hashes.SHA256()),
     )
     return sig.hex()
+
 
 def verify_signature(public_key, hash_hex: str, signature_hex: str) -> bool:
     try:

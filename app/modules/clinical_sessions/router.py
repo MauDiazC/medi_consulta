@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, get_authorized_doctor_ids
+from app.core.dependencies import get_authorized_doctor_ids, get_current_user
 from app.core.pagination import pagination_params
 
 from .repository import ClinicalSessionRepository
@@ -17,9 +16,7 @@ router = APIRouter(
 
 
 def get_service(db: AsyncSession = Depends(get_db)):
-    return ClinicalSessionService(
-        ClinicalSessionRepository(db)
-    )
+    return ClinicalSessionService(ClinicalSessionRepository(db))
 
 
 @router.post("")
@@ -29,21 +26,23 @@ async def create_session(
     user=Depends(get_current_user),
 ):
     """Start a new clinical session/jornada."""
-    # Note: Only a doctor can start their own session. 
+    # Note: Only a doctor can start their own session.
     # If we want assistants to start sessions for doctors, we'd need a doctor_id in the payload.
     return await service.create(payload, user["org"], user["sub"])
 
 
 @router.get("")
 async def list_sessions(
-    is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    is_active: bool | None = Query(None, description="Filter by active status"),
     page=Depends(pagination_params),
     user=Depends(get_current_user),
     authorized_doctor_ids=Depends(get_authorized_doctor_ids),
     service=Depends(get_service),
 ):
     """List clinical sessions filtered by authorized doctors."""
-    return await service.list(user["org"], page.limit, page.offset, is_active, authorized_doctor_ids)
+    return await service.list(
+        user["org"], page.limit, page.offset, is_active, authorized_doctor_ids
+    )
 
 
 @router.get("/{session_id}")
@@ -75,7 +74,7 @@ async def deactivate_session(
     service=Depends(get_service),
 ):
     """Close/deactivate a clinical session."""
-    # Note: We should ideally validate authorization here too, 
+    # Note: We should ideally validate authorization here too,
     # but for brevity using the repo's org isolation.
     return await service.deactivate(session_id, user["org"])
 

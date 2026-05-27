@@ -1,13 +1,16 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
+
+from pydantic import BaseModel
+
 
 class CheckoutRequest(BaseModel):
     plan_code: str  # plan_medico, plan_consultorio, plan_clinica_premium
 
+
 class CheckoutResponse(BaseModel):
     checkout_url: str
+
 
 class InvoiceRequest(BaseModel):
     rfc: str
@@ -15,6 +18,7 @@ class InvoiceRequest(BaseModel):
     tax_system: str
     zip_code: str
     use: str = "G03"  # Gastos en general
+
 
 class PaymentDTO(BaseModel):
     id: UUID
@@ -25,11 +29,12 @@ class PaymentDTO(BaseModel):
     cfdi_status: str
     created_at: datetime
 
+
 class CFDIRead(BaseModel):
     id: UUID
     payment_id: UUID
-    uuid_sat: Optional[str]
-    xml_url: Optional[str]
-    pdf_url: Optional[str]
+    uuid_sat: str | None
+    xml_url: str | None
+    pdf_url: str | None
     status: str
     created_at: datetime

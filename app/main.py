@@ -1,35 +1,34 @@
 import logging
+
 import redis.asyncio as redis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.logging import configure_logging
 from app.core.telemetry import setup_telemetry
-from prometheus_fastapi_instrumentator import Instrumentator
-
-from app.modules.auth.router import router as auth_router
 from app.modules.ai.copilot.router import router as copilot_router
-from app.modules.clinical_sessions.router import \
-    router as clinical_sessions_router
-from app.modules.dictation.websocket import router as dictation_ws
+from app.modules.appointments.router import router as appointments_router
+from app.modules.auth.router import router as auth_router
+from app.modules.billing.router import router as billing_router
+from app.modules.clinical_sessions.router import router as clinical_sessions_router
 from app.modules.dictation.router import router as dictation_router
+from app.modules.dictation.websocket import router as dictation_ws
 from app.modules.encounters.router import router as encounters_router
+from app.modules.files.router import router as files_router
 from app.modules.health.router import router as health_router
 from app.modules.notes.router import router as notes_router
 from app.modules.notes.signing.router import router as note_sign_router
 from app.modules.notes.signing.verifier_router import router as verify_router
 from app.modules.organizations.router import router as organizations_router
 from app.modules.patients.router import router as patients_router
+from app.modules.triage.router import router as triage_router
+from app.modules.tts.router import router as tts_router
 from app.modules.users.router import router as users_router
 from app.modules.workspace.router import router as workspace_router
-from app.modules.appointments.router import router as appointments_router
-from app.modules.tts.router import router as tts_router
-from app.modules.triage.router import router as triage_router
-from app.modules.files.router import router as files_router
-from app.modules.billing.router import router as billing_router
 
 
 def create_app() -> FastAPI:
@@ -50,12 +49,17 @@ def create_app() -> FastAPI:
     async def startup_event():
         logger.info("Application starting up")
         setup_telemetry(app)
-        
+
         # Institutional Configuration Guard
         secret_key = getattr(settings, "SECRET_KEY", None)
-        
-        if not secret_key or secret_key == "CHANGE_ME_IN_PRODUCTION_USE_A_SECURE_RANDOM_STRING":
-            logger.warning("INSECURE CONFIGURATION: SECRET_KEY is not set or using default value.")
+
+        if (
+            not secret_key
+            or secret_key == "CHANGE_ME_IN_PRODUCTION_USE_A_SECURE_RANDOM_STRING"
+        ):
+            logger.warning(
+                "INSECURE CONFIGURATION: SECRET_KEY is not set or using default value."
+            )
 
         # 1) Database Health Check (Scoped session)
         try:
@@ -63,7 +67,11 @@ def create_app() -> FastAPI:
                 await session.execute(text("SELECT 1"))
             logger.info("Database connection established", extra={"status": "healthy"})
         except Exception as e:
-            logger.error(f"Database initialization failed: {str(e)}", exc_info=True, extra={"status": "unhealthy"})
+            logger.error(
+                f"Database initialization failed: {str(e)}",
+                exc_info=True,
+                extra={"status": "unhealthy"},
+            )
 
         # 2) Redis Health Check (Transient connection)
         try:
@@ -72,7 +80,11 @@ def create_app() -> FastAPI:
             await temp_r.close()
             logger.info("Redis connection established", extra={"status": "healthy"})
         except Exception as e:
-            logger.error(f"Redis initialization failed: {str(e)}", exc_info=True, extra={"status": "unhealthy"})
+            logger.error(
+                f"Redis initialization failed: {str(e)}",
+                exc_info=True,
+                extra={"status": "unhealthy"},
+            )
 
     @app.on_event("shutdown")
     async def shutdown_event():
@@ -80,6 +92,7 @@ def create_app() -> FastAPI:
 
     # --- Idempotency (Professional Layer)
     from app.core.idempotency import IdempotencyMiddleware
+
     app.add_middleware(IdempotencyMiddleware, redis_url=settings.REDIS_URL)
 
     # --- CORS (Professional Configuration)
@@ -89,7 +102,9 @@ def create_app() -> FastAPI:
     # Moving it AFTER Idempotency ensures it's the outermost layer.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"] if not getattr(settings, "CORS_ALLOW_CREDENTIALS", True) else [],
+        allow_origins=["*"]
+        if not getattr(settings, "CORS_ALLOW_CREDENTIALS", True)
+        else [],
         allow_origin_regex=".*",
         allow_credentials=True,
         allow_methods=["*"],

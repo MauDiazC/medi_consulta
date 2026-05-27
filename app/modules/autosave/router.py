@@ -2,7 +2,6 @@ from fastapi import HTTPException
 
 
 class AutosaveService:
-
     def __init__(self, repo, session_repo):
         self.repo = repo
         self.session_repo = session_repo
@@ -13,15 +12,10 @@ class AutosaveService:
         session_id,
         payload,
     ):
-        session = await self.session_repo.active_session(
-            payload["encounter_id"]
-        )
+        session = await self.session_repo.active_session(payload["encounter_id"])
 
         if not session:
-            raise HTTPException(
-                409,
-                "No active session"
-            )
+            raise HTTPException(409, "No active session")
 
         await self.repo.save_snapshot(
             note_id,

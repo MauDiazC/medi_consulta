@@ -1,26 +1,33 @@
-import hmac
 import hashlib
-from fastapi import APIRouter, Depends, Query, File, UploadFile, HTTPException
+import hmac
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.core.database import get_db
-from app.modules.notes.signing.models import NoteSnapshot, EncounterSeal, OrganizationKey
 from app.modules.notes.signing.crypto_service import load_public_key, verify_signature
-from app.modules.notes.signing.utils import canonical_json, sha256_hex
+from app.modules.notes.signing.models import (
+    NoteSnapshot,
+)
 from app.modules.notes.signing.repository import SigningRepository
+from app.modules.notes.signing.utils import canonical_json, sha256_hex
 
 router = APIRouter(prefix="/verify", tags=["verification"])
 
+
 async def get_authorized_key(repo: SigningRepository, fingerprint: str) -> str:
     """
-    Retrieves the managed public key from the database. 
+    Retrieves the managed public key from the database.
     Prevents the use of unauthorized external keys.
     """
     key_record = await repo.get_key_by_fingerprint(fingerprint)
     if not key_record:
-        raise HTTPException(403, f"Public key with fingerprint {fingerprint} is not authorized by the organization.")
+        raise HTTPException(
+            403,
+            f"Public key with fingerprint {fingerprint} is not authorized by the organization.",
+        )
     return key_record.public_key_pem
+
 
 @router.post("/snapshot/{snapshot_id}")
 async def verify_snapshot(
@@ -43,7 +50,9 @@ async def verify_snapshot(
 
     # 4) Fingerprint Validation
     actual_fingerprint = hashlib.sha256(public_key_pem.encode()).hexdigest()
-    fingerprint_ok = hmac.compare_digest(actual_fingerprint, snapshot.public_key_fingerprint)
+    fingerprint_ok = hmac.compare_digest(
+        actual_fingerprint, snapshot.public_key_fingerprint
+    )
 
     # 5) Hash Integrity
     canonical = canonical_json(payload)
@@ -62,7 +71,9 @@ async def verify_snapshot(
         else:
             error_detail = None
     else:
-        error_detail = "Integrity or fingerprint check failed before signature verification"
+        error_detail = (
+            "Integrity or fingerprint check failed before signature verification"
+        )
 
     return {
         "valid": (integrity_ok and signature_ok and fingerprint_ok),
@@ -72,12 +83,11 @@ async def verify_snapshot(
         "diagnostics": {
             "recalculated_hash": recalculated,
             "stored_hash": snapshot.content_hash,
-            "error_detail": error_detail
+            "error_detail": error_detail,
         },
-        "details": {
-            "fingerprint": snapshot.public_key_fingerprint
-        }
+        "details": {"fingerprint": snapshot.public_key_fingerprint},
     }
+
 
 @router.post("/encounter-seal/{encounter_id}")
 async def verify_encounter_seal(
@@ -100,13 +110,15 @@ async def verify_encounter_seal(
     # 3) Longitudinal Validation
     current_snapshots = await repo.get_all_snapshots_for_encounter(encounter_id)
     payload_hashes = seal.seal_payload.get("snapshot_hashes", [])
-    count_ok = (len(current_snapshots) == seal.seal_payload.get("snapshot_count"))
-    
+    count_ok = len(current_snapshots) == seal.seal_payload.get("snapshot_count")
+
     list_integrity_ok = True
     if count_ok:
         for i, s in enumerate(current_snapshots):
-            if str(s.id) != payload_hashes[i]["snapshot_id"] or \
-               s.content_hash != payload_hashes[i]["content_hash"]:
+            if (
+                str(s.id) != payload_hashes[i]["snapshot_id"]
+                or s.content_hash != payload_hashes[i]["content_hash"]
+            ):
                 list_integrity_ok = False
                 break
     else:
@@ -117,7 +129,9 @@ async def verify_encounter_seal(
     if integrity_ok:
         try:
             public = load_public_key(public_key_pem.encode())
-            signature_ok = verify_signature(public, recalculated_agg_hash, seal.signature)
+            signature_ok = verify_signature(
+                public, recalculated_agg_hash, seal.signature
+            )
         except Exception:
             signature_ok = False
 
@@ -128,6 +142,6 @@ async def verify_encounter_seal(
         "snapshot_list_match": list_integrity_ok,
         "details": {
             "fingerprint": seal.public_key_fingerprint,
-            "sealed_at": seal.signed_at.isoformat()
-        }
+            "sealed_at": seal.signed_at.isoformat(),
+        },
     }

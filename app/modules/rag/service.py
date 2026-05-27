@@ -1,5 +1,4 @@
 class ClinicalRAG:
-
     def __init__(
         self,
         embedder,
@@ -14,9 +13,7 @@ class ClinicalRAG:
         query_text,
     ):
 
-        emb = await self.embedder.embed(
-            query_text
-        )
+        emb = await self.embedder.embed(query_text)
 
         notes = await self.repo.search(
             patient_id,

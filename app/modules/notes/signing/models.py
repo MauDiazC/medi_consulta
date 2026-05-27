@@ -1,8 +1,14 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import (JSON, Column, DateTime, ForeignKey, String, Boolean,
-                        UniqueConstraint)
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -19,15 +25,17 @@ class NoteSnapshot(Base, ImmutableLegalArtifact):
     content_hash = Column(String(128), nullable=False)
     signature = Column(String, nullable=False)
     signed_by = Column(UUID(as_uuid=True), nullable=False)
-    signed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    signed_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
     public_key_fingerprint = Column(String(128), nullable=False)
     previous_snapshot_hash = Column(String(128), nullable=True, index=True)
     pdf_path = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-
-    __table_args__ = (
-        UniqueConstraint("version_id", name="uq_snapshot_version"),
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
+
+    __table_args__ = (UniqueConstraint("version_id", name="uq_snapshot_version"),)
 
 
 class EncounterSeal(Base, ImmutableLegalArtifact):
@@ -37,10 +45,14 @@ class EncounterSeal(Base, ImmutableLegalArtifact):
     encounter_id = Column(UUID(as_uuid=True), nullable=False, unique=True)
     aggregate_hash = Column(String(128), nullable=False)
     signature = Column(String, nullable=False)
-    signed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    signed_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
     public_key_fingerprint = Column(String(128), nullable=False)
     seal_payload = Column(JSON, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
 
 
 class OrganizationKey(Base, ImmutableLegalArtifact):
@@ -51,13 +63,17 @@ class OrganizationKey(Base, ImmutableLegalArtifact):
     public_key_pem = Column(String, nullable=False)
     public_key_fingerprint = Column(String(128), nullable=False, unique=True)
     encrypted_private_key = Column(String, nullable=False)  # AES-GCM Encrypted PEM
-    organization_root_fingerprint = Column(String(128), nullable=True) # Immutable anchor
+    organization_root_fingerprint = Column(
+        String(128), nullable=True
+    )  # Immutable anchor
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
     retired_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
-        # Ensure only one active key per organization (requires partial index in Postgres, 
+        # Ensure only one active key per organization (requires partial index in Postgres,
         # but we'll enforce logically in service for now)
     )
 
@@ -67,19 +83,21 @@ class BackupJob(Base, ImmutableLegalArtifact):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id = Column(UUID(as_uuid=True), nullable=False)
-    mode = Column(String(20), nullable=False) # FULL, INCREMENTAL
-    status = Column(String(20), nullable=False) # STARTED, COMPLETED, FAILED
-    
+    mode = Column(String(20), nullable=False)  # FULL, INCREMENTAL
+    status = Column(String(20), nullable=False)  # STARTED, COMPLETED, FAILED
+
     # Cryptographic Anchors
-    backup_hash = Column(String(128), nullable=True) # Global bundle hash
-    manifest_hash = Column(String(128), nullable=True) # manifest.json hash
-    certification_signature = Column(String, nullable=True) # Signed manifest_hash
+    backup_hash = Column(String(128), nullable=True)  # Global bundle hash
+    manifest_hash = Column(String(128), nullable=True)  # manifest.json hash
+    certification_signature = Column(String, nullable=True)  # Signed manifest_hash
     organization_root_fingerprint = Column(String(128), nullable=False)
-    
+
     # Backup Trust Chain
     previous_backup_hash = Column(String(128), nullable=True, index=True)
-    
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
     completed_at = Column(DateTime(timezone=True), nullable=True)
     executor_id = Column(UUID(as_uuid=True), nullable=False)
 

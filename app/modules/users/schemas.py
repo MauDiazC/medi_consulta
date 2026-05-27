@@ -1,5 +1,6 @@
+from typing import Any
+
 from pydantic import BaseModel, EmailStr
-from typing import Optional, Dict, Any
 
 
 class UserCreate(BaseModel):
@@ -11,9 +12,9 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    role: Optional[str] = None
-    full_name: Optional[str] = None
-    settings: Optional[Dict[str, Any]] = None
+    role: str | None = None
+    full_name: str | None = None
+    settings: dict[str, Any] | None = None
 
 
 class UserDTO(BaseModel):
@@ -23,4 +24,4 @@ class UserDTO(BaseModel):
     role: str
     organization_id: str
     active: bool
-    settings: Dict[str, Any] = {}
+    settings: dict[str, Any] = {}

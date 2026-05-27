@@ -3,7 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class EncounterRepository:
-
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -47,7 +46,7 @@ class EncounterRepository:
     async def get(self, encounter_id, org):
         r = await self.db.execute(
             text("""
-                SELECT e.*, 
+                SELECT e.*,
                        p.first_name || ' ' || p.last_name as patient_name,
                        u.full_name as doctor_name
                 FROM encounters e
@@ -62,7 +61,7 @@ class EncounterRepository:
 
     async def list_all(self, org, limit, offset, doctor_ids: list[str] | None = None):
         query = """
-            SELECT e.*, 
+            SELECT e.*,
                    p.first_name || ' ' || p.last_name as patient_name,
                    u.full_name as doctor_name
             FROM encounters e
@@ -71,7 +70,7 @@ class EncounterRepository:
             WHERE e.organization_id = CAST(:org AS UUID)
         """
         params = {"org": org, "limit": limit, "offset": offset}
-        
+
         if doctor_ids is not None:
             if not doctor_ids:
                 return []
@@ -79,13 +78,15 @@ class EncounterRepository:
             params["doctor_ids"] = doctor_ids
 
         query += " ORDER BY e.created_at DESC LIMIT :limit OFFSET :offset"
-        
+
         r = await self.db.execute(text(query), params)
         return r.mappings().all()
 
-    async def list_by_patient(self, patient_id, org, limit, offset, doctor_ids: list[str] | None = None):
+    async def list_by_patient(
+        self, patient_id, org, limit, offset, doctor_ids: list[str] | None = None
+    ):
         query = """
-            SELECT e.*, 
+            SELECT e.*,
                    p.first_name || ' ' || p.last_name as patient_name,
                    u.full_name as doctor_name
             FROM encounters e
@@ -110,7 +111,7 @@ class EncounterRepository:
     async def list_by_doctor(self, doctor_id, org, limit, offset):
         r = await self.db.execute(
             text("""
-                SELECT e.*, 
+                SELECT e.*,
                        p.first_name || ' ' || p.last_name as patient_name,
                        u.full_name as doctor_name
                 FROM encounters e
@@ -130,9 +131,11 @@ class EncounterRepository:
         )
         return r.mappings().all()
 
-    async def list_by_session(self, session_id, org, limit, offset, doctor_ids: list[str] | None = None):
+    async def list_by_session(
+        self, session_id, org, limit, offset, doctor_ids: list[str] | None = None
+    ):
         query = """
-            SELECT e.*, 
+            SELECT e.*,
                    p.first_name || ' ' || p.last_name as patient_name,
                    u.full_name as doctor_name
             FROM encounters e

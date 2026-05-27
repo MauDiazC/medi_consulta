@@ -1,30 +1,40 @@
-import json
-import logging
-from google import genai
-from app.core.config import settings
-from datetime import datetime, timezone
-import os
-import httpx
 import asyncio
+import logging
+
+import httpx
+from google import genai
+
+from app.core.config import settings
 
 logger = logging.getLogger("appointments.notifier")
 
+
 class AppointmentNotifier:
+
     def __init__(self):
         self.meta_token = settings.get("META_WHATSAPP_TOKEN")
         self.phone_number_id = settings.get("META_PHONE_NUMBER_ID")
-        
+
         # Initialize Google GenAI (New SDK)
         if settings.get("GOOGLE_AI_API_KEY"):
             self.client = genai.Client(api_key=settings.GOOGLE_AI_API_KEY)
         else:
             self.client = None
-            logger.warning("GOOGLE_AI_API_KEY not configured. AI reminders will be disabled.")
+            logger.warning(
+                "GOOGLE_AI_API_KEY not configured. AI reminders will be disabled."
+            )
 
-    async def generate_ai_message(self, patient_name: str, doctor_name: str, scheduled_at: str, reason: str, reminder_type: str):
-        """
-        Generates a personalized WhatsApp message using Google Gemini 2.0.
-        reminder_type: 'immediate', '12h', '5m'
+    async def generate_ai_message(
+        self,
+        patient_name: str,
+        doctor_name: str,
+        scheduled_at: str,
+        reason: str,
+        reminder_type: str,
+    ):
+        """Generates a personalized WhatsApp message using Google Gemini 2.0.
+
+        reminder_type: 'immediate', '12h', '3h', '15m'
         """
         prompt = f"""
         Eres un asistente médico virtual amable y profesional.
@@ -33,9 +43,9 @@ class AppointmentNotifier:
         - Doctor: {doctor_name}
         - Fecha/Hora: {scheduled_at}
         - Motivo: {reason}
-        - Tipo de recordatorio: {reminder_type} (immediate = recién agendada, 12h = faltan 12 horas, 5m = faltan 5 minutos)
+        - Tipo de recordatorio: {reminder_type} (immediate = recién agendada, 12h = faltan 12 horas, 3h = faltan 3 horas, 15m = faltan 15 minutos)
 
-        Si es 5m o 12h, pide confirmación de asistencia de forma muy breve.
+        Si es 12h, 3h o 15m, pide confirmación de asistencia de forma muy breve.
         El mensaje debe ser corto, cálido y claro. Usa emojis de forma moderada.
         Responde ÚNICAMENTE con el texto del mensaje.
         """
@@ -47,8 +57,8 @@ class AppointmentNotifier:
             # Gemini execution with Gemini 2.5 Flash
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model='gemini-2.5-flash',
-                contents=prompt
+                model="gemini-2.5-flash",
+                contents=prompt,
             )
             return response.text.strip()
         except Exception as e:
@@ -56,77 +66,102 @@ class AppointmentNotifier:
             # Fallback message
             return f"Hola {patient_name}, te recordamos tu cita con el Dr. {doctor_name} el {scheduled_at}. ¡Te esperamos!"
 
-    async def send_whatsapp(self, phone: str, message: str, appointment_id: str, meta_token: str | None = None, phone_number_id: str | None = None):
-        """
-        Sends the message using Meta Cloud API.
-        Can receive dynamic credentials (per organization) or fallback to global settings.
+    async def send_whatsapp(
+        self,
+        phone: str,
+        message: str,
+        appointment_id: str,
+        meta_token: str | None = None,
+        phone_number_id: str | None = None,
+    ) -> str | None:
+        """Sends the message using Meta Cloud API.
+
+        Can receive dynamic credentials (per organization) or fallback to global
+        settings. Returns the WhatsApp message ID (wamid) on success, or None
+        on failure.
         """
         token = meta_token or self.meta_token
         phone_id = phone_number_id or self.phone_number_id
 
         if not token or not phone_id:
-            logger.warning(f"Meta Cloud API credentials not configured for appointment {appointment_id}. Skipping WhatsApp.")
-            return
+            logger.warning(
+                f"Meta Cloud API credentials not configured for appointment {appointment_id}. Skipping WhatsApp."
+            )
+            return None
 
         # Meta standard: phone number without '+'
         clean_phone = phone.replace("+", "").replace(" ", "").strip()
-        
+
         url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
-        
+
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
             "to": clean_phone,
             "type": "text",
-            "text": {
-                "body": message
-            }
+            "text": {"body": message},
         }
 
         try:
             async with httpx.AsyncClient() as client:
-                r = await client.post(url, json=payload, headers=headers, timeout=10.0)
+                r = await client.post(
+                    url, json=payload, headers=headers, timeout=10.0
+                )
                 if r.status_code >= 400:
                     logger.error(f"Meta API error ({r.status_code}): {r.text}")
+                    return None
                 else:
-                    logger.info(f"WhatsApp message sent to {clean_phone} for appointment {appointment_id}")
+                    logger.info(
+                        f"WhatsApp message sent to {clean_phone} for appointment {appointment_id}"
+                    )
+                    # Extract the message ID from the response
+                    data = r.json()
+                    messages = data.get("messages", [])
+                    if messages:
+                        return messages[0].get("id")
+                    return None
         except Exception as e:
             logger.error(f"Meta HTTP client error: {str(e)}")
+            return None
 
     async def extract_intent(self, user_message: str):
-        """
-        Uses Gemini to extract intention from a WhatsApp message.
+        """Uses Gemini to extract intention from a WhatsApp message.
+
         Returns: 'confirm', 'cancel', or 'other'
         """
         if not self.client:
             # Fallback a lógica simple
             msg = user_message.lower()
-            if any(k in msg for k in ["si", "confirm", "acepto", "voy"]): return "confirm"
-            if any(k in msg for k in ["no", "cancel", "posp", "malo"]): return "cancel"
+            if any(k in msg for k in ["si", "confirm", "acepto", "voy"]):
+                return "confirm"
+            if any(k in msg for k in ["no", "cancel", "posp", "malo"]):
+                return "cancel"
             return "other"
 
         prompt = f"""
         Analiza el siguiente mensaje de un paciente respondiendo a un recordatorio de cita médica.
         Determina si el paciente está CONFIRMANDO, CANCELANDO o si es OTRA COSA (duda, cambio de hora, etc.).
-        
+
         Mensaje: "{user_message}"
-        
+
         Responde ÚNICAMENTE con una de estas tres palabras: confirm, cancel, other.
         """
 
         try:
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model='gemini-1.5-flash',
-                contents=prompt
+                model="gemini-2.5-flash",
+                contents=prompt,
             )
             result = response.text.strip().lower()
-            if "confirm" in result: return "confirm"
-            if "cancel" in result: return "cancel"
+            if "confirm" in result:
+                return "confirm"
+            if "cancel" in result:
+                return "cancel"
             return "other"
         except Exception:
             return "other"

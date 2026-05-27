@@ -2,7 +2,6 @@ from fastapi import HTTPException
 
 
 class EncounterService:
-
     def __init__(self, repo):
         self.repo = repo
 
@@ -19,13 +18,17 @@ class EncounterService:
         return await self.repo.list_all(org, limit, offset, doctor_ids)
 
     async def list_by_patient(self, patient_id, org, limit, offset, doctor_ids=None):
-        return await self.repo.list_by_patient(patient_id, org, limit, offset, doctor_ids)
+        return await self.repo.list_by_patient(
+            patient_id, org, limit, offset, doctor_ids
+        )
 
     async def list_by_doctor(self, doctor_id, org, limit, offset):
         return await self.repo.list_by_doctor(doctor_id, org, limit, offset)
 
     async def list_by_session(self, session_id, org, limit, offset, doctor_ids=None):
-        return await self.repo.list_by_session(session_id, org, limit, offset, doctor_ids)
+        return await self.repo.list_by_session(
+            session_id, org, limit, offset, doctor_ids
+        )
 
     async def update(self, encounter_id, org, payload):
         encounter = await self.repo.update(encounter_id, org, payload)

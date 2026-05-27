@@ -18,17 +18,17 @@ def get_service(db=Depends(get_db)):
 
 @router.post("")
 async def create_user(
-    payload: UserCreate, 
-    user=Depends(require_role("admin")),
-    s=Depends(get_service)
+    payload: UserCreate, user=Depends(require_role("admin")), s=Depends(get_service)
 ):
     """
-    Creates a new user. 
+    Creates a new user.
     SaaS Guard: Only admins can create users, and they must be in their org.
     """
     if str(payload.organization_id) != str(user["org"]):
-        raise HTTPException(status_code=403, detail="Cannot create user for another organization")
-        
+        raise HTTPException(
+            status_code=403, detail="Cannot create user for another organization"
+        )
+
     return await s.create(payload)
 
 
@@ -95,13 +95,12 @@ async def hard_delete_user(
     await s.repo.hard_delete_by_email(target_user["email"])
     return {"status": "purged", "email": target_user["email"]}
 
+
 # --- Staff Assignments ---
 
+
 @router.get("/me/assignments")
-async def list_my_assignments(
-    user=Depends(get_current_user),
-    s=Depends(get_service)
-):
+async def list_my_assignments(user=Depends(get_current_user), s=Depends(get_service)):
     """Lists all doctors assigned to the current authenticated staff member."""
     return await s.get_assigned_doctors(user["sub"], user["org"])
 
@@ -116,31 +115,32 @@ async def update_my_profile(
     # Force the user_id to be the one from the token
     return await s.update(user["sub"], user["org"], payload)
 
+
 @router.post("/{staff_id}/assignments/{doctor_id}")
 async def assign_doctor(
     staff_id: str,
     doctor_id: str,
     user=Depends(require_role("admin")),
-    s=Depends(get_service)
+    s=Depends(get_service),
 ):
     """Assigns a doctor to a staff member (assistant, nurse, admin)."""
     return await s.assign_doctor(staff_id, doctor_id, user["org"])
+
 
 @router.delete("/{staff_id}/assignments/{doctor_id}")
 async def remove_assignment(
     staff_id: str,
     doctor_id: str,
     user=Depends(require_role("admin")),
-    s=Depends(get_service)
+    s=Depends(get_service),
 ):
     """Removes a doctor assignment from a staff member."""
     return await s.remove_assignment(staff_id, doctor_id, user["org"])
 
+
 @router.get("/{staff_id}/assignments")
 async def list_assignments(
-    staff_id: str,
-    user=Depends(require_role("admin")),
-    s=Depends(get_service)
+    staff_id: str, user=Depends(require_role("admin")), s=Depends(get_service)
 ):
     """Lists all doctors assigned to a staff member."""
     return await s.get_assigned_doctors(staff_id, user["org"])

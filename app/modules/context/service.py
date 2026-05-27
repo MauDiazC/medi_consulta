@@ -1,5 +1,4 @@
 class ContextService:
-
     def __init__(
         self,
         repo,
@@ -10,9 +9,7 @@ class ContextService:
 
     async def refresh(self, patient_id):
 
-        memory = await self.builder.build(
-            patient_id
-        )
+        memory = await self.builder.build(patient_id)
 
         await self.repo.upsert(
             patient_id,

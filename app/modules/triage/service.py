@@ -7,7 +7,9 @@ class TriageService:
     def __init__(self, repository: TriageRepository):
         self.repository = repository
 
-    async def create_triage(self, payload: TriageCreate, organization_id: str, doctor_id: str) -> Triage:
+    async def create_triage(
+        self, payload: TriageCreate, organization_id: str, doctor_id: str
+    ) -> Triage:
         triage = Triage(
             patient_id=payload.patient_id,
             appointment_id=payload.appointment_id,
@@ -18,7 +20,7 @@ class TriageService:
             blood_pressure=payload.blood_pressure,
             weight=payload.weight,
             height=payload.height,
-            temperature=payload.temperature
+            temperature=payload.temperature,
         )
         return await self.repository.create(triage)
 

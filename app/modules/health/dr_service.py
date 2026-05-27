@@ -1,16 +1,15 @@
-import hmac
-import hashlib
-from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
+from datetime import datetime
 
-from app.modules.notes.signing.repository import SigningRepository
-from app.modules.notes.signing.models import NoteSnapshot, EncounterSeal, BackupJob
-from app.core.models import ClinicalAuditLog
-from app.modules.notes.signing.utils import canonical_json, sha256_hex
-from app.modules.notes.signing.crypto_service import load_public_key, verify_signature
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.audit import audit_log
 from app.core.events import publish_event_tx
+from app.core.models import ClinicalAuditLog
+from app.modules.notes.signing.models import EncounterSeal
+from app.modules.notes.signing.repository import SigningRepository
+from app.modules.notes.signing.utils import canonical_json, sha256_hex
+
 
 class RestoreVerificationService:
     def __init__(self, db: AsyncSession):
@@ -27,14 +26,16 @@ class RestoreVerificationService:
             "encounter_seals_ok": False,
             "snapshot_trust_ok": False,
             "backup_link_ok": False,
-            "errors": []
+            "errors": [],
         }
 
         # 1) Verify Audit Trust Chain (Linear Scan)
-        audit_stmt = select(ClinicalAuditLog).order_by(ClinicalAuditLog.created_at.asc(), ClinicalAuditLog.id.asc())
+        audit_stmt = select(ClinicalAuditLog).order_by(
+            ClinicalAuditLog.created_at.asc(), ClinicalAuditLog.id.asc()
+        )
         audit_res = await self.db.execute(audit_stmt)
         entries = audit_res.scalars().all()
-        
+
         last_hash = None
         audit_ok = True
         for entry in entries:
@@ -48,40 +49,57 @@ class RestoreVerificationService:
         seals_stmt = select(EncounterSeal)
         seals_res = await self.db.execute(seals_stmt)
         seals = seals_res.scalars().all()
-        
+
         seals_ok = True
         for seal in seals:
             # Re-fetch snapshots for this encounter to validate against seal
-            snapshots = await self.repo.get_all_snapshots_for_encounter(str(seal.encounter_id))
+            snapshots = await self.repo.get_all_snapshots_for_encounter(
+                str(seal.encounter_id)
+            )
             recalc_payload = {
                 "encounter_id": str(seal.encounter_id),
-                "snapshot_hashes": [{"snapshot_id": str(s.id), "hash": s.content_hash} for s in snapshots],
+                "snapshot_hashes": [
+                    {"snapshot_id": str(s.id), "hash": s.content_hash}
+                    for s in snapshots
+                ],
                 "final_chain_hash": snapshots[-1].content_hash if snapshots else None,
                 "snapshot_count": len(snapshots),
                 "sealed_at": seal.seal_payload.get("sealed_at"),
-                "schema_version": seal.seal_payload.get("schema_version")
+                "schema_version": seal.seal_payload.get("schema_version"),
             }
             if sha256_hex(canonical_json(recalc_payload)) != seal.aggregate_hash:
                 seals_ok = False
-                report["errors"].append(f"EncounterSeal integrity breach: {seal.encounter_id}")
+                report["errors"].append(
+                    f"EncounterSeal integrity breach: {seal.encounter_id}"
+                )
         report["encounter_seals_ok"] = seals_ok
 
         # 3) Verify Backup Trust Chain Link
-        latest_backup = await self.repo.get_latest_full_backup("00000000-0000-0000-0000-000000000000") # placeholder org
+        latest_backup = await self.repo.get_latest_full_backup(
+            "00000000-0000-0000-0000-000000000000"
+        )  # placeholder org
         if latest_backup and latest_backup.previous_backup_hash:
             # Validate continuity exists in the BackupJob table
             report["backup_link_ok"] = True
         else:
-            report["backup_link_ok"] = (latest_backup is not None)
+            report["backup_link_ok"] = latest_backup is not None
 
         # Final Certification
         success = audit_ok and seals_ok and report["backup_link_ok"]
         if success:
             async with self.db.begin():
                 await audit_log(
-                    self.db, "system", "dr_engine", "DR_RESTORE_CERTIFIED", "SYSTEM",
-                    metadata={"report": report}
+                    self.db,
+                    "system",
+                    "dr_engine",
+                    "DR_RESTORE_CERTIFIED",
+                    "SYSTEM",
+                    metadata={"report": report},
                 )
-                await publish_event_tx(self.db, "DR_RESTORE_CERTIFIED", {"timestamp": datetime.utcnow().isoformat()})
+                await publish_event_tx(
+                    self.db,
+                    "DR_RESTORE_CERTIFIED",
+                    {"timestamp": datetime.utcnow().isoformat()},
+                )
 
         return report

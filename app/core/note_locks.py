@@ -1,9 +1,8 @@
 import json
 from datetime import datetime, timedelta
 
-import redis.asyncio as redis
 from fastapi import HTTPException
-from app.core.config import settings
+
 from app.core.events import get_redis
 
 LOCK_TTL = 120
@@ -42,10 +41,7 @@ async def acquire_note_lock(
     payload = {
         "doctor_id": doctor_id,
         "session_id": session_id,
-        "expires_at": (
-            datetime.utcnow()
-            + timedelta(seconds=LOCK_TTL)
-        ).isoformat(),
+        "expires_at": (datetime.utcnow() + timedelta(seconds=LOCK_TTL)).isoformat(),
     }
 
     await r.set(
@@ -75,10 +71,7 @@ async def release_note_lock(
 
     data = json.loads(existing)
 
-    if (
-        data["doctor_id"] != doctor_id
-        or data["session_id"] != session_id
-    ):
+    if data["doctor_id"] != doctor_id or data["session_id"] != session_id:
         raise HTTPException(
             403,
             "Invalid lock owner",

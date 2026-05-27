@@ -3,7 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class ClinicalNoteRepository:
-
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -48,13 +47,11 @@ class ClinicalNoteRepository:
         """Secure update validating the organization ownership via join."""
         allowed_fields = {"subjective", "objective", "assessment", "plan"}
         sanitized_fields = {k: v for k, v in fields.items() if k in allowed_fields}
-        
+
         if not sanitized_fields:
             return None
 
-        set_clause = ", ".join(
-            f"{k} = :{k}" for k in sanitized_fields.keys()
-        )
+        set_clause = ", ".join(f"{k} = :{k}" for k in sanitized_fields.keys())
 
         # UPDATE with JOIN or subquery to ensure multi-tenancy
         # Optimistic locking: only update if expected_updated_at matches OR is not provided
@@ -143,7 +140,9 @@ class ClinicalNoteRepository:
         )
         await self.db.commit()
 
-    async def supersede_previous_versions(self, encounter_id: str, current_note_id: str):
+    async def supersede_previous_versions(
+        self, encounter_id: str, current_note_id: str
+    ):
         """
         Legal Maintenance: Marks all previous versions of an encounter as superseded.
         Ensures only the authoritative (signed or latest) version remains in focus.
@@ -157,16 +156,11 @@ class ClinicalNoteRepository:
                   AND id != CAST(:current_id AS UUID)
                   AND signed_at IS NULL
             """),
-            {"eid": encounter_id, "current_id": current_note_id}
+            {"eid": encounter_id, "current_id": current_note_id},
         )
         await self.db.commit()
 
-    async def get_version(
-        self,
-        encounter_id: str,
-        version: int,
-        organization_id: str
-    ):
+    async def get_version(self, encounter_id: str, version: int, organization_id: str):
         """Secure fetch by version and organization."""
         r = await self.db.execute(
             text("""
@@ -177,11 +171,7 @@ class ClinicalNoteRepository:
             AND cn.version = :version
             AND e.organization_id = CAST(:org_id AS UUID)
             """),
-            {
-                "eid": encounter_id,
-                "version": version,
-                "org_id": organization_id
-            },
+            {"eid": encounter_id, "version": version, "org_id": organization_id},
         )
         return r.mappings().first()
 

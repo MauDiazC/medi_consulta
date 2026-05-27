@@ -1,10 +1,10 @@
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class AuthRepository:
-
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -46,7 +46,14 @@ class AuthRepository:
 
         return result.mappings().first()
 
-    async def create_user(self, email: str, full_name: str, password_hash: str, role: str, organization_id: str = None):
+    async def create_user(
+        self,
+        email: str,
+        full_name: str,
+        password_hash: str,
+        role: str,
+        organization_id: str = None,
+    ):
         """
         Institutional Provisioning for new users.
         """
@@ -57,12 +64,12 @@ class AuthRepository:
                 RETURNING id, email, role, organization_id
             """),
             {
-                "email": email, 
-                "name": full_name, 
-                "hash": password_hash, 
+                "email": email,
+                "name": full_name,
+                "hash": password_hash,
                 "role": role,
-                "org_id": organization_id
-            }
+                "org_id": organization_id,
+            },
         )
         return r.mappings().first()
 
@@ -74,18 +81,20 @@ class AuthRepository:
                 VALUES(:name, true)
                 RETURNING id, name
             """),
-            {"name": name}
+            {"name": name},
         )
         return r.mappings().first()
 
-    async def create_reset_token(self, user_id: str, token: str, expires_in_minutes: int = 60):
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=expires_in_minutes)
+    async def create_reset_token(
+        self, user_id: str, token: str, expires_in_minutes: int = 60
+    ):
+        expires_at = datetime.now(UTC) + timedelta(minutes=expires_in_minutes)
         await self.db.execute(
             text("""
                 INSERT INTO password_reset_tokens(user_id, token, expires_at)
                 VALUES(:uid, :token, :exp)
             """),
-            {"uid": user_id, "token": token, "exp": expires_at}
+            {"uid": user_id, "token": token, "exp": expires_at},
         )
 
     async def get_reset_token(self, token: str):
@@ -95,7 +104,7 @@ class AuthRepository:
                 FROM password_reset_tokens
                 WHERE token=:token
             """),
-            {"token": token}
+            {"token": token},
         )
         return result.mappings().first()
 
@@ -103,12 +112,12 @@ class AuthRepository:
         # Update password
         await self.db.execute(
             text("UPDATE users SET password_hash=:hash WHERE id=:uid"),
-            {"hash": password_hash, "uid": user_id}
+            {"hash": password_hash, "uid": user_id},
         )
         # Mark token as used
         await self.db.execute(
             text("UPDATE password_reset_tokens SET used_at=now() WHERE token=:token"),
-            {"token": token}
+            {"token": token},
         )
         await self.db.commit()
 

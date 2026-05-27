@@ -1,5 +1,4 @@
 class TriggerEngine:
-
     MIN_CHARS = 40
     MAX_IDLE = 2.0
 
