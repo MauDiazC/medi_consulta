@@ -54,3 +54,17 @@ class AppointmentNotificationRead(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class OTPRequestPayload(BaseModel):
+    doctor_id: UUID
+    scheduled_at: datetime
+    patient_name: str
+    patient_email: str
+    patient_phone: str
+    metadata_json: dict | None = None
+
+
+class OTPConfirmPayload(BaseModel):
+    patient_phone: str
+    otp_code: str

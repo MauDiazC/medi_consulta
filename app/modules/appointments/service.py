@@ -16,8 +16,12 @@ from .schemas import SlotRead
 
 logger = logging.getLogger("appointments.service")
 
+# Global fallback store for OTPs in case Redis is not running (e.g., mock URL in tests)
+_otp_fallback_store = {}
+
 
 class AppointmentService:
+
     def __init__(self, repo: AppointmentRepository):
         self.repo = repo
         self.notifier = AppointmentNotifier()
@@ -48,11 +52,15 @@ class AppointmentService:
         # 2. Check Days Off
         weekday = dt.weekday()
         if weekday in days_off.get("weekdays", []):
-            raise HTTPException(400, "La clínica no labora en este día de la semana")
+            raise HTTPException(
+                400, "La clínica no labora en este día de la semana"
+            )
 
         specific_dates = days_off.get("specific_dates", [])
         if dt.strftime("%Y-%m-%d") in specific_dates:
-            raise HTTPException(400, "La clínica no labora en esta fecha específica")
+            raise HTTPException(
+                400, "La clínica no labora en esta fecha específica"
+            )
 
         # 3. Check Business Hours (08:00 - 20:00)
         start_work = time(8, 0)
@@ -60,7 +68,9 @@ class AppointmentService:
         appt_time = dt.time()
 
         if appt_time < start_work or appt_time >= end_work:
-            raise HTTPException(400, "Cita fuera del horario laboral (08:00 - 20:00)")
+            raise HTTPException(
+                400, "Cita fuera del horario laboral (08:00 - 20:00)"
+            )
 
         # 4. Check 40-minute slot alignment
         minutes_since_start = (dt.hour - 8) * 60 + dt.minute
@@ -145,7 +155,9 @@ class AppointmentService:
             org_settings = org.get("settings", {}) if org else {}
             org_whatsapp = org_settings.get("whatsapp", {})
             meta_token = meta_token or org_whatsapp.get("token")
-            phone_number_id = phone_number_id or org_whatsapp.get("phone_number_id")
+            phone_number_id = phone_number_id or org_whatsapp.get(
+                "phone_number_id"
+            )
 
         # Phone resolution
         phone = details.get("metadata_json", {}).get("phone")
@@ -159,7 +171,9 @@ class AppointmentService:
             notification.status = "failed"
             notification.error_message = "No phone number found"
             await self.repo.db.commit()
-            logger.warning(f"No phone number found for appointment {appointment.id}")
+            logger.warning(
+                f"No phone number found for appointment {appointment.id}"
+            )
             return
 
         try:
@@ -167,7 +181,9 @@ class AppointmentService:
             ai_msg = await self.notifier.generate_ai_message(
                 patient_name=details["patient_name"],
                 doctor_name=details["doctor_name"],
-                scheduled_at=details["scheduled_at"].strftime("%d/%m/%Y %H:%M"),
+                scheduled_at=details["scheduled_at"].strftime(
+                    "%d/%m/%Y %H:%M"
+                ),
                 reason=details.get("metadata_json", {}).get(
                     "reason", "Consulta médica"
                 ),
@@ -189,7 +205,9 @@ class AppointmentService:
                 notification.sent_at = datetime.now(UTC)
             else:
                 notification.status = "failed"
-                notification.error_message = "Meta API returned no message ID or failed"
+                notification.error_message = (
+                    "Meta API returned no message ID or failed"
+                )
 
         except Exception as e:
             logger.error(
@@ -267,7 +285,9 @@ class AppointmentService:
         notification = result.scalar_one_or_none()
 
         if not notification:
-            logger.warning(f"No notification found for whatsapp_message_id: {wamid}")
+            logger.warning(
+                f"No notification found for whatsapp_message_id: {wamid}"
+            )
             return False
 
         notification.status = status
@@ -284,11 +304,9 @@ class AppointmentService:
         """
         from sqlalchemy import select
 
-        stmt = (
-            select(AppointmentNotification)
-            .where(AppointmentNotification.appointment_id == UUID(appointment_id))
-            .order_by(AppointmentNotification.created_at.asc())
-        )
+        stmt = select(AppointmentNotification).where(
+            AppointmentNotification.appointment_id == UUID(appointment_id)
+        ).order_by(AppointmentNotification.created_at.asc())
 
         result = await self.repo.db.execute(stmt)
         return result.scalars().all()
@@ -406,12 +424,16 @@ class AppointmentService:
             org_settings = org.get("settings", {}) if org else {}
             org_whatsapp = org_settings.get("whatsapp", {})
             meta_token = meta_token or org_whatsapp.get("token")
-            phone_number_id = phone_number_id or org_whatsapp.get("phone_number_id")
+            phone_number_id = phone_number_id or org_whatsapp.get(
+                "phone_number_id"
+            )
 
         # 4. Extraer intención
         intent = await self.notifier.extract_intent(message_text)
 
-        reply_msg = "He recibido tu mensaje. Un asistente humano lo revisará pronto."
+        reply_msg = (
+            "He recibido tu mensaje. Un asistente humano lo revisará pronto."
+        )
         if intent == "confirm":
             appointment.patient_confirmation = True
             appointment.status = "confirmed"
@@ -470,7 +492,9 @@ class AppointmentService:
         if weekday in days_off.get("weekdays", []):
             return []  # No slots on days off
 
-        if target_date.strftime("%Y-%m-%d") in days_off.get("specific_dates", []):
+        if target_date.strftime("%Y-%m-%d") in days_off.get(
+            "specific_dates", []
+        ):
             return []
 
         existing_appts = await self.repo.get_doctor_appointments_by_date(
@@ -478,8 +502,12 @@ class AppointmentService:
         )
 
         slots = []
-        current_time = datetime.combine(target_date, time(8, 0)).replace(tzinfo=UTC)
-        end_work_time = datetime.combine(target_date, time(20, 0)).replace(tzinfo=UTC)
+        current_time = datetime.combine(target_date, time(8, 0)).replace(
+            tzinfo=UTC
+        )
+        end_work_time = datetime.combine(target_date, time(20, 0)).replace(
+            tzinfo=UTC
+        )
 
         slot_duration = timedelta(minutes=40)
 
@@ -510,3 +538,195 @@ class AppointmentService:
             current_time = slot_end
 
         return slots
+
+    async def request_otp(self, payload) -> dict:
+        """Generates a 4-digit OTP, stores it in Redis (or in-memory fallback),
+
+        and sends it to the patient's phone number via WhatsApp.
+        """
+        import json
+        import secrets
+
+        from sqlalchemy import text
+
+        from app.core.events import get_redis
+
+        clean_phone = self._format_mexico_phone(payload.patient_phone)
+        if not clean_phone:
+            raise HTTPException(400, "Número de teléfono inválido")
+
+        # 1. Fetch Doctor details (organization_id and full_name)
+        stmt = text(
+            "SELECT organization_id, full_name FROM users WHERE id = CAST(:doc_id AS UUID) LIMIT 1"
+        )
+        result = await self.repo.db.execute(stmt, {"doc_id": payload.doctor_id})
+        doctor = result.mappings().first()
+        if not doctor:
+            raise HTTPException(404, "Médico no encontrado")
+
+        org_id = str(doctor["organization_id"])
+        doctor_name = doctor["full_name"]
+
+        # 2. Fetch Cascading WhatsApp credentials
+        doctor_user = await self.user_repo.get(str(payload.doctor_id), org_id)
+        doctor_settings = doctor_user.get("settings", {}) if doctor_user else {}
+        whatsapp_config = doctor_settings.get("whatsapp", {})
+
+        meta_token = whatsapp_config.get("token")
+        phone_number_id = whatsapp_config.get("phone_number_id")
+
+        if not meta_token or not phone_number_id:
+            org = await self.org_repo.get(org_id)
+            org_settings = org.get("settings", {}) if org else {}
+            org_whatsapp = org_settings.get("whatsapp", {})
+            meta_token = meta_token or org_whatsapp.get("token")
+            phone_number_id = phone_number_id or org_whatsapp.get(
+                "phone_number_id"
+            )
+
+        # 3. Generate 4-digit OTP
+        otp_code = f"{secrets.SystemRandom().randint(1000, 9999)}"
+
+        # 4. Save to Redis / Fallback
+        otp_payload = {
+            "doctor_id": str(payload.doctor_id),
+            "scheduled_at": payload.scheduled_at.isoformat(),
+            "patient_name": payload.patient_name,
+            "patient_email": payload.patient_email,
+            "otp_code": otp_code,
+            "metadata_json": payload.metadata_json or {},
+        }
+
+        r = get_redis()
+        key = f"otp_appointment:{clean_phone}"
+        value_data = json.dumps(otp_payload)
+
+        if r is not None:
+            await r.set(key, value_data, ex=600)  # 10 minutes expiration
+        else:
+            _otp_fallback_store[key] = (
+                value_data,
+                datetime.now(UTC) + timedelta(minutes=10),
+            )
+
+        # 5. Send OTP via WhatsApp
+        otp_message = f"Hola {payload.patient_name}, tu código para confirmar tu cita con el Dr. {doctor_name} es: {otp_code}."
+
+        await self.notifier.send_whatsapp(
+            phone=clean_phone,
+            message=otp_message,
+            appointment_id="OTP_VERIFICATION",
+            meta_token=meta_token,
+            phone_number_id=phone_number_id,
+        )
+
+        return {"status": "otp_sent"}
+
+    async def confirm_otp(self, payload) -> Appointment:
+        """Validates the OTP code, resolves/creates the patient, schedules the
+
+        appointment, and sends the welcome notification.
+        """
+        import json
+
+        from sqlalchemy import text
+
+        from app.core.events import get_redis
+        from app.modules.patients.schemas import PatientCreate as PatientCreateSchema
+
+        clean_phone = self._format_mexico_phone(payload.patient_phone)
+        if not clean_phone:
+            raise HTTPException(400, "Número de teléfono inválido")
+
+        r = get_redis()
+        key = f"otp_appointment:{clean_phone}"
+        data = None
+
+        if r is not None:
+            data = await r.get(key)
+        else:
+            item = _otp_fallback_store.get(key)
+            if item:
+                val, expires_at = item
+                if datetime.now(UTC) < expires_at:
+                    data = val
+                else:
+                    _otp_fallback_store.pop(key, None)
+
+        if not data:
+            raise HTTPException(
+                400, "El código OTP ha expirado o no existe en el sistema"
+            )
+
+        otp_data = json.loads(data)
+        if otp_data["otp_code"] != payload.otp_code.strip():
+            raise HTTPException(400, "Código de verificación incorrecto")
+
+        doctor_id = otp_data["doctor_id"]
+        scheduled_at = datetime.fromisoformat(otp_data["scheduled_at"])
+        patient_name = otp_data["patient_name"]
+        patient_email = otp_data["patient_email"]
+        metadata_json = otp_data["metadata_json"]
+
+        # 1. Fetch Doctor organization
+        stmt = text(
+            "SELECT organization_id FROM users WHERE id = CAST(:doc_id AS UUID) LIMIT 1"
+        )
+        result = await self.repo.db.execute(stmt, {"doc_id": doctor_id})
+        doctor = result.mappings().first()
+        if not doctor:
+            raise HTTPException(404, "Médico no encontrado")
+
+        org_id = str(doctor["organization_id"])
+
+        # 2. Lookup or Create Patient under org_id
+        patient_repo = PatientRepository(self.repo.db)
+
+        ten_digits = (
+            clean_phone[-10:] if len(clean_phone) >= 10 else clean_phone
+        )
+        with_52 = f"52{ten_digits}"
+
+        r_patient = await self.repo.db.execute(
+            text("""
+            SELECT * FROM patients
+            WHERE organization_id = CAST(:org_id AS UUID)
+              AND (phone_number = :p1 OR phone_number = :p2 OR phone_number = :p3)
+            LIMIT 1
+        """),
+            {"org_id": org_id, "p1": ten_digits, "p2": with_52, "p3": f"+{with_52}"},
+        )
+        patient = r_patient.mappings().first()
+
+        if not patient:
+            names = patient_name.strip().split(" ", 1)
+            first_name = names[0]
+            last_name = names[1] if len(names) > 1 else ""
+
+            new_patient_payload = PatientCreateSchema(
+                first_name=first_name,
+                last_name=last_name,
+                phone_number=clean_phone,
+                email=patient_email,
+            )
+            patient = await patient_repo.create(new_patient_payload, org_id)
+
+        # 3. Create the appointment payload and schedule it
+        from .schemas import AppointmentCreate as AppointmentCreateSchema
+
+        appt_create_payload = AppointmentCreateSchema(
+            patient_id=UUID(str(patient["id"])),
+            doctor_id=UUID(doctor_id),
+            scheduled_at=scheduled_at,
+            metadata_json={**metadata_json, "phone": clean_phone},
+        )
+
+        appointment = await self.schedule(appt_create_payload, org_id)
+
+        # 4. Clean up OTP data
+        if r is not None:
+            await r.delete(key)
+        else:
+            _otp_fallback_store.pop(key, None)
+
+        return appointment

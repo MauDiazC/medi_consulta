@@ -17,6 +17,8 @@ from .schemas import (
     AppointmentNotificationRead,
     AppointmentRead,
     AppointmentUpdate,
+    OTPConfirmPayload,
+    OTPRequestPayload,
     SlotRead,
 )
 from .service import AppointmentService
@@ -269,3 +271,50 @@ async def get_appointment_notifications(
         raise HTTPException(404, "Appointment not found")
 
     return await service.get_notifications_for_appointment(appointment_id)
+
+
+@router.get("/public/doctor/{doctor_id}/availability", response_model=list[SlotRead])
+async def get_public_availability(
+    doctor_id: str,
+    target_date: date_type | None = None,
+    service: AppointmentService = Depends(get_service),
+):
+    """Obtiene la disponibilidad de bloques de un médico de forma pública."""
+    from uuid import UUID
+    try:
+        UUID(str(doctor_id))
+    except ValueError:
+        raise HTTPException(400, "doctor_id debe ser un UUID válido") from None
+
+    from sqlalchemy import text
+    stmt = text("SELECT organization_id FROM users WHERE id = CAST(:doc_id AS UUID) LIMIT 1")
+    result = await service.repo.db.execute(stmt, {"doc_id": doctor_id})
+    doctor = result.mappings().first()
+    if not doctor:
+        raise HTTPException(404, "Médico no encontrado")
+
+    org_id = str(doctor["organization_id"])
+    if not target_date:
+        tz = pytz.timezone("America/Mexico_City")
+        target_date = datetime.now(tz).date()
+
+    return await service.get_availability(org_id, doctor_id, target_date)
+
+
+@router.post("/public/request-otp")
+async def request_otp(
+    payload: OTPRequestPayload,
+    service: AppointmentService = Depends(get_service),
+):
+    """Solicita la generación del código OTP y su envío por WhatsApp."""
+    return await service.request_otp(payload)
+
+
+@router.post("/public/confirm-otp", response_model=AppointmentRead)
+async def confirm_otp(
+    payload: OTPConfirmPayload,
+    service: AppointmentService = Depends(get_service),
+):
+    """Recibe el código OTP del paciente, valida e inserta la cita en la base de datos."""
+    return await service.confirm_otp(payload)
+
