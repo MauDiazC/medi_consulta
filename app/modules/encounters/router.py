@@ -90,7 +90,7 @@ async def encounters_by_session(
     )
 
 
-@router.post("/{encounter_id}/close")
+@router.patch("/{encounter_id}/close")
 async def close_encounter(
     encounter_id: uuid.UUID,
     user=Depends(get_current_user),
