@@ -42,7 +42,8 @@ async def read_prescription(
         )
 
     # 2. Return streaming audio
-    return StreamingResponse(s.speak_prescription(plan_text), media_type="audio/mpeg")
+    audio_stream = await s.speak_prescription(plan_text)
+    return StreamingResponse(audio_stream, media_type="audio/mpeg")
 
 
 @router.post("/read-text")
@@ -55,6 +56,8 @@ async def read_custom_text(
     Converts any custom text to audio.
     Useful for immediate instructions not yet saved in a note.
     """
+    audio_stream = await s.generate_speech_stream(payload.text)
     return StreamingResponse(
-        s.generate_speech_stream(payload.text), media_type="audio/mpeg"
+        audio_stream, media_type="audio/mpeg"
     )
+
