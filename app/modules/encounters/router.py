@@ -88,3 +88,17 @@ async def encounters_by_session(
     return await s.list_by_session(
         str(session_id), user["org"], page.limit, page.offset, authorized_doctor_ids
     )
+
+
+@router.post("/{encounter_id}/close")
+async def close_encounter(
+    encounter_id: uuid.UUID,
+    user=Depends(get_current_user),
+    s=Depends(get_service),
+):
+    """Cierra un encuentro clínico."""
+    # s.get will validate that the encounter exists and belongs to the user's organization.
+    await s.get(str(encounter_id), user["org"])
+    await s.close(str(encounter_id), user["org"])
+    return {"status": "closed", "encounter_id": str(encounter_id)}
+
